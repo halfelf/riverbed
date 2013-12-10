@@ -1,56 +1,60 @@
 (ns oceanus.riverbed.main
   (:require [cheshire.core :refer :all])
   (:require [compojure.route :as route])
-  (:require monger.core
-            monger.collection)
-  (:import [org.bson.types ObjectId]
-           [com.mongodb DB WriteConcern])
+  (:require [clojure.java.jdbc :as jdbc])
   (:use compojure.core
         compojure.handler
-        org.httpkit.server))
+        org.httpkit.server)
+  (:gen-class))
+
+
+(def mysql-db {:subprotocol "mysql"
+               :subname "//192.168.122.1:3306/insight_online_5"
+               :user "topo_gen"
+               :password "Topo^Gen"})
+(def topo-table "inhome_datafilters")
 
 (defn hello-handler [req]
   {:status  200
    :headers {"Content-Type" "text/html"}
    :body    "This is dataminr riverbed server."})
 
-(defn update-topology 
+(defn generate-topology 
   [req]
-  (let [body (parse-string (String. (.bytes (:body req))))
-        tpid-map {:tpid (Integer. (:tpid (:route-params req)))}]
-    (try
-      (monger.core/connect! {:host "store" :port 27017})
-      (monger.core/set-db! (monger.core/get-db "topologies"))
-      (monger.collection/update "current_running" 
-                                tpid-map 
-                                (merge tpid-map body) 
-                                :upsert true)
-      {:status  201
-       :headers {"Content-Type" "text/plain"}
-       :body    "update ok"} 
-      (catch Exception e (str "caught exception: " (.getMessage e)))
-      (finally (monger.core/disconnect!))))
-  )
+  (let [topo-name (:tpname (:route-params req))
+        topo-spec (jdbc/query mysql-db
+                    [(format "select * from %s where name=\"%s\"" 
+                             topo-table
+                             topo-name)])]
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; TODO
+    ; generate and run topo here
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    {:status 201
+     :headers {"Content-Type" "text/plain"}
+     :body "created"}
+  ))
+
+;  (let [body (parse-string (String. (.bytes (:body req))))
 
 (defn get-topology-by-id
   [req]
-  (try
-    (monger.core/connect! {:host "store" :port 27017})
-    (monger.core/set-db! (monger.core/get-db "topologies"))
-    (let [tpid-map {:tpid (Integer. (:tpid (:route-params req)))}
-          topo-spec (monger.collection/find-one "current_running" tpid-map)]
-      {:status  200
-       :headers {"Content-Type" "text/plain"}
-       :body    (str topo-spec)})
-    (catch Exception e (str "caught exception: " (.getMessage e)))
-    (finally (monger.core/disconnect!)))
-  )
+  (let [topo-name (:tpname (:route-params req))
+        topo-spec (jdbc/query mysql-db
+                    [(format "select * from %s where name=\"%s\"" 
+                             topo-table
+                             topo-name)])]
+      
+    {:status  200
+     :headers {"Content-Type" "application/json"}
+     :body    (generate-string topo-spec)}
+  ))
 
 (defroutes all-routes
   (GET "/" [] hello-handler)
-  (context "/topology/:tpid" []
+  (context "/topology/:tpname" []
            (GET "/" [] get-topology-by-id)
-           (POST "/" [] update-topology))
+           (POST "/" [] generate-topology))
   (route/not-found "404"))
 
 (run-server (api #'all-routes) {:port 8010})

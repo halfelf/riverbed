@@ -10,7 +10,9 @@
                  [javax.servlet/servlet-api "2.5"] ; see ring github page
                  [compojure "1.1.6"]
                  [com.novemberain/monger "1.7.0-beta1"]
-                 [cheshire "5.2.0"]]
+                 [cheshire "5.2.0"]
+                 [org.clojure/java.jdbc "0.3.0-beta2"]
+                 [mysql/mysql-connector-java "5.1.25"]]
   :main oceanus.riverbed.main
   :min-lein-version "2.0.0"
   )
