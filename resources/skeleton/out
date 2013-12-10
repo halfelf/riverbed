@@ -1,0 +1,22 @@
+Compiling oceanus.anduin.clj.word-count
+18:40:29,171 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Could NOT find resource [logback.groovy]
+18:40:29,171 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Could NOT find resource [logback-test.xml]
+18:40:29,172 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Found resource [logback.xml] at [jar:file:/home/halfelf/.m2/repository/storm/storm-console-logging/0.9.0-rc2/storm-console-logging-0.9.0-rc2.jar!/logback.xml]
+18:40:29,173 |-WARN in ch.qos.logback.classic.LoggerContext[default] - Resource [logback.xml] occurs multiple times on the classpath.
+18:40:29,173 |-WARN in ch.qos.logback.classic.LoggerContext[default] - Resource [logback.xml] occurs at [jar:file:/home/halfelf/.m2/repository/storm/storm-core/0.9.0-rc2/storm-core-0.9.0-rc2.jar!/logback.xml]
+18:40:29,173 |-WARN in ch.qos.logback.classic.LoggerContext[default] - Resource [logback.xml] occurs at [jar:file:/home/halfelf/.m2/repository/storm/storm-console-logging/0.9.0-rc2/storm-console-logging-0.9.0-rc2.jar!/logback.xml]
+18:40:29,199 |-INFO in ch.qos.logback.core.joran.spi.ConfigurationWatchList@4cfa1baf - URL [jar:file:/home/halfelf/.m2/repository/storm/storm-console-logging/0.9.0-rc2/storm-console-logging-0.9.0-rc2.jar!/logback.xml] is not of type file
+18:40:29,295 |-INFO in ch.qos.logback.classic.joran.action.ConfigurationAction - debug attribute not set
+18:40:29,298 |-INFO in ch.qos.logback.classic.joran.action.ConfigurationAction - Setting ReconfigureOnChangeFilter scanning period to 30 seconds
+18:40:29,299 |-INFO in ReconfigureOnChangeFilter{invocationCounter=0} - Will scan for changes in [[]] every 30 seconds. 
+18:40:29,299 |-INFO in ch.qos.logback.classic.joran.action.ConfigurationAction - Adding ReconfigureOnChangeFilter as a turbo filter
+18:40:29,306 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.core.ConsoleAppender]
+18:40:29,312 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [A1]
+18:40:29,356 |-INFO in ch.qos.logback.core.joran.action.NestedComplexPropertyIA - Assuming default type [ch.qos.logback.classic.encoder.PatternLayoutEncoder] for [encoder] property
+18:40:29,427 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting level of logger [org.apache.zookeeper] to WARN
+18:40:29,427 |-INFO in ch.qos.logback.classic.joran.action.RootLoggerAction - Setting level of ROOT logger to INFO
+18:40:29,427 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [A1] to Logger[ROOT]
+18:40:29,428 |-INFO in ch.qos.logback.classic.joran.action.ConfigurationAction - End of configuration.
+18:40:29,431 |-INFO in ch.qos.logback.classic.joran.JoranConfigurator@382fa5a4 - Registering current configuration as safe fallback point
+
+Compiling oceanus.anduin.clj.nlp
