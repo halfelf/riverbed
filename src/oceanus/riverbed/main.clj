@@ -22,11 +22,13 @@
 (defn generate-topology 
   [req]
   (let [topo-name (:tpname (:route-params req))
-        topo-spec (jdbc/query mysql-db
-                    [(format "select * from %s where name=\"%s\"" 
+        query-string (format "select * from %s where name=\"%s\""
                              topo-table
-                             topo-name)])]
+                             topo-name)
+        topo-spec (first (jdbc/query mysql-db [query-string]))]
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;({:name "test", :conditions "and", :not_keywords "bla", 
+    ;  :or_keywords "bar", :and_keywords "foo", :in_user_id 1, :id 14})
     ; TODO
     ; generate and run topo here
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -44,7 +46,7 @@
                     [(format "select * from %s where name=\"%s\"" 
                              topo-table
                              topo-name)])]
-      
+    (prn topo-spec)  
     {:status  200
      :headers {"Content-Type" "application/json"}
      :body    (generate-string topo-spec)}
@@ -57,5 +59,5 @@
            (POST "/" [] generate-topology))
   (route/not-found "404"))
 
-(run-server (api #'all-routes) {:port 8010})
+;(run-server (api #'all-routes) {:port 8010})
 
