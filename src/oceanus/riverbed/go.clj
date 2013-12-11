@@ -1,5 +1,4 @@
 (ns oceanus.riverbed.go
-  ;(:require [oceanus.glacier :as :decex] 
   (:use [clojure.java.shell :only [sh]])
   (:import [java.io File])
   (:import [org.apache.commons.io FileUtils])
@@ -7,28 +6,24 @@
                              [str-bolts-maker :as str-bolts-maker]])
   (:gen-class))
 
-(comment   ; a node spec map
-  {:type        "bolt"
-   :name        "my-bolt"
-   :impl        "word-count"  
-   :serial      "3" 
-   :parameters  ["blabla" "blablabla"]
-   :input       {"1" "shuffle" "2" ["word"]}
-   :output      ["passed" "failed"]
-   :dop         4 }     ;degree of parallelism
-         )
-
     ;{:name "test", :conditions "and", :not_keywords "bla", 
     ;  :or_keywords "bar", :and_keywords "foo", :in_user_id 1, :id 14}
 
 (defn go-topo
   "Generate a project dir, define topo, define nodes, run"
   [spec]
-  (let [topo-name (spec :name)]
+  (let [topo-name (spec :name)
+        topo-spec (replace {:or_keywords  :include-any
+                            :and_keywords :include-all
+                            :not_keywords :exclude-any}
+                    (-> spec
+                      (update-in [:or_keywords]  #(string/split % #"\s"))
+                      (update-in [:and_keywords] #(string/split % #"\s"))
+                      (update-in [:not_keywords] #(string/split % #"\s"))))
+        topo-def  (topology-maker/generate-topology spec)]
     (FileUtils/copyDirectory 
       (File. "resources/skeleton") 
       (File. (format "/streaming/%s/" topo-name) false)) ; not copy FileDate
-    (topology-maker/generate-topology spec)
   ))
 
 ;(defmulti to-nodes 
