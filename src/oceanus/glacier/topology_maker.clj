@@ -1,7 +1,5 @@
 (ns oceanus.glacier.topology-maker
   (:require [cheshire.core :refer :all])
-  (:require [clojure.string :as string])
-  (:require clojure.walk)
   (:gen-class))
 
 (defn generate-filters-spec

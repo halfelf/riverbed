@@ -14,122 +14,68 @@
 ;         (ack! collector tuple)
 ;         )))))
 ;
-
-(comment ; a string bolt spec map
-  {:name              "my-bolt"
-   :output-declr      ["word"]
-   :type              :include-any   ; :include-any (default)
-                                     ; :include-all
-                                     ; :exclude-any :exclude-all
-                                     ; :sentiment
-   :field             :weibo
-   ;option-map itself and every key in it are not necessary
-   :option-map        {:params  ["this"]  ; default nil
-                       :prepare true}     ; true when side effect exists
-   ;side-effect itself and every key in it are not necessary
-   :side-effect-conf  {:db {:db-type    "mongo" 
-                            :db-name    "xxx"
-                            :db-table   "ttt"
-                            :db-host    "192.168.1.1:88888"
-                            :side-spec  "192.168.1.2/bolt-spec/bolt_number}"}
-                       :mq {:mq-type    "rabbit"
-                            :mq-name    "counts"
-                            :mq-host    "192.168.1.1:99999"
-                            :mq-group   "abc"
-                            :side-spec  "192.168.1.2/bolt-spec/bolt_number}"}}
-   })
-                            
-
-(defmulti generate-str-bolt
-  (fn [bolt-spec] [(:type bolt-spec)
-                   (:side-effect-conf bolt-spec)]))
-
 ;(defbolt split-sentence ["word"] [tuple collector]
-;  (let [words (.split (.getString tuple 0) " ")]
-;    (doseq [w words]
-;      (emit-bolt! collector [w] :anchor tuple))
-;    (ack! collector tuple)
-;    ))
+;    (let [words (.split (.getString tuple 0) " ")]
+;          (doseq [w words]
+;                  (emit-bolt! collector [w] :anchor tuple))
+;          (ack! collector tuple)
+;          ))
 
-(defmethod generate-str-bolt [:include-any nil]
-  [bolt-spec]
-  (str 
-    (format "(defbolt %s %s [tuple collector]\n" 
-        (:name bolt-spec) 
-        (:output-declr bolt-spec))
-            "  (if-let [info-dict (.getValue tuple 0)\n"
-    (format "           words (\"%s\" info-dict)\n" (:field bolt-spec))
-            "           test_set (set (:params (:option-map bolt-spec)))]\n"
-            "    (if (some test_set words)\n"
-            "      (emit-bolt! collector [tuple] :anchor tuple))\n"
-            "    (ack! collector tuple)))\n"
-    ))
 
-(defmethod generate-str-bolt [:exclude-any nil]
-  [bolt-spec]
+(defn include-all-maker
+  [words condition]
   (str
-    (format "(defbolt %s %s [tuple collector]\n" 
-        (:name bolt-spec) 
-        (:output-declr bolt-spec))
-            "  (if-let [info-dict (.getValue tuple 0)\n"
-    (format "           words (\"%s\" info-dict)\n" (:field bolt-spec))
-            "           test_set (set (:params (:option-map bolt-spec)))]\n"
-            "    (if (not-any? test_set words)\n"
-            "      (emit-bolt! collector [tuple] :anchor tuple))\n"
-            "    (ack! collector tuple)))\n"
-    ))
-  
-(defmethod generate-str-bolt [:include-all nil]
-  [bolt-spec]
+        (format "(defbolt %s-include-all [\"include-all\"] [tuple collector]\n" condition)
+    (if (= "and" condition)
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;
+      (str      "  (let [weibo (.getValue tuple 0)]\n"
+        (format "    (if (every? (set (weibo :seged-text)) %s)\n" words)
+                "      (do\n"
+                "        (emit-bolt! collector [weibo] :anchor tuple)\n"
+                "        (ack! collector tuple)))))\n")
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;
+      (str      "  (let [weibo (.getValue tuple 0)\n"
+        (format "        passed (boolean (every? (set (weibo :seged-text)) %s))\n" words)
+                "        new-record (merge {:passed passed} weibo)]\n" 
+                "    (emit-bolt! collector [new-record] :anchor tuple)\n"
+                "    (ack! collector tuple)))\n")
+      )))
+
+(defn include-any-maker
+  [words condition]
   (str
-    (format "(defbolt %s %s [tuple collector]\n" 
-        (:name bolt-spec) 
-        (:output-declr bolt-spec))
-            "  (if-let [info-dict (.getValue tuple 0)\n"
-    (format "           words (set (\"%s\" info-dict))\n" (:field bolt-spec))
-            "           test_set (:params (:option-map bolt-spec))]\n"
-            "    (if (every? words test_set)\n"
-            "      (emit-bolt! collector [tuple] :anchor tuple))\n"
-            "    (ack! collector tuple)))\n"
-    ))
+        (format "(defbolt %s-include-any [\"include-all\"] [tuple collector]\n" condition)
+    (if (= "and" condition)
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;
+      (str      "  (let [weibo (.getValue tuple 0)]\n"
+        (format "    (if (some (set (weibo :seged-text)) %s)\n" words)
+                "      (do\n"
+                "        (emit-bolt! collector [weibo] :anchor tuple)\n"
+                "        (ack! collector tuple)))))\n")
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;
+      (str      "  (let [weibo (.getValue tuple 0)\n"
+        (format "        passed (boolean (some (set (weibo :seged-text)) %s))\n" words)
+                "        new-record (merge {:passed passed} weibo)]\n" 
+                "    (emit-bolt! collector [new-record] :anchor tuple)\n"
+                "    (ack! collector tuple)))\n")
+      )))
 
-(defmethod generate-str-bolt [:exclude-all nil]
-  [bolt-spec]
+(defn exclude-any-maker
+  [words condition]
   (str
-    (format "(defbolt %s %s [tuple collector]\n" 
-        (:name bolt-spec) 
-        (:output-declr bolt-spec))
-            "  (if-let [info-dict (.getValue tuple 0)\n"
-    (format "           words (set (\"%s\" info-dict))\n" (:field bolt-spec))
-            "           test_set (:params (:option-map bolt-spec))]\n"
-            "    (if (not-every? words test_set)\n"
-            "      (emit-bolt! collector [tuple] :anchor tuple))\n"
-            "    (ack! collector tuple)))\n"
-    ))
+        (format "(defbolt %s-exclude-any [\"include-all\"] [tuple collector]\n" condition)
+    (if (= "and" condition)
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;
+      (str      "  (let [weibo (.getValue tuple 0)]\n"
+        (format "    (if-not (some (set (weibo :seged-text)) %s)\n" words)
+                "      (do\n"
+                "        (emit-bolt! collector [weibo] :anchor tuple)\n"
+                "        (ack! collector tuple)))))\n")
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;
+      (str      "  (let [weibo (.getValue tuple 0)\n"
+        (format "        passed (boolean (some (set (weibo :seged-text)) %s))\n" words)
+                "        new-record (merge {:passed (not passed)} weibo)]\n" 
+                "    (emit-bolt! collector [new-record] :anchor tuple)\n"
+                "    (ack! collector tuple)))\n")
+      )))
 
-
-(defmethod generate-str-bolt [:include-any :mq]
-  [bolt-spec]
-    )
-
-(defmethod generate-str-bolt [:include-all :mq]
-  [bolt-spec]
-    )
-(defmethod generate-str-bolt [:exclude-any :mq]
-  [bolt-spec]
-    )
-(defmethod generate-str-bolt [:exclude-all :mq]
-  [bolt-spec]
-    )
-(defmethod generate-str-bolt [:include-any :db]
-  [bolt-spec]
-    )
-(defmethod generate-str-bolt [:include-any :db]
-  [bolt-spec]
-    )
-(defmethod generate-str-bolt [:exclude-any :db]
-  [bolt-spec]
-    )
-(defmethod generate-str-bolt [:exclude-all :db]
-  [bolt-spec]
-    )

@@ -1,4 +1,5 @@
 (ns oceanus.riverbed.go
+  (:require [clojure.string :as string])
   (:use [clojure.java.shell :only [sh]])
   (:import [java.io File])
   (:import [org.apache.commons.io FileUtils])
