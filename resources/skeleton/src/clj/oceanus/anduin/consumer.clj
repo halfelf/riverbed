@@ -4,7 +4,7 @@
            [kafka.javaapi.consumer ConsumerConnector]
            [java.util Properties]))
 
-(defn make-props
+(defn- make-props
   "convert a clojure map into a Properties object."
   [m]
   (let [props (Properties.)]
@@ -12,7 +12,7 @@
       (.put props k (str v)))
     props))
 
-(defn get-streams-map [conf topics]
+(defn- get-streams-map [conf topics]
   (-> conf make-props ConsumerConfig.
     Consumer/createJavaConsumerConnector
     (.createMessageStreams topics)))
@@ -30,7 +30,7 @@
     (.get topic)
     first))
 
-(defn count-events [props topic total-partitions]
+(defn- count-events [props topic total-partitions]
   (let [counter (atom 0)]
     (doseq [stream (get-streams props topic total-partitions)]
       (.start
