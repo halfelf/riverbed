@@ -39,7 +39,7 @@
 
 ;  (let [body (parse-string (String. (.bytes (:body req))))
 
-(defn get-topology-by-id
+(defn get-topology-by-name
   [req]
   (let [topo-name (:tpname (:route-params req))
         topo-spec (jdbc/query mysql-db
@@ -55,7 +55,7 @@
 (defroutes all-routes
   (GET "/" [] hello-handler)
   (context "/topology/:tpname" []
-           (GET "/" [] get-topology-by-id)
+           (GET "/" [] get-topology-by-name)
            (POST "/" [] generate-topology))
   (route/not-found "404"))
 

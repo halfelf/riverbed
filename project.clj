@@ -13,8 +13,8 @@
                  [cheshire "5.2.0"]
                  [org.clojure/java.jdbc "0.3.0-beta2"]
                  [mysql/mysql-connector-java "5.1.25"]
-                 [org.apache.directory.studio/org.apache.commons.io "2.4"]]
-  :main oceanus.riverbed.main
+                 [me.raynes/fs "1.4.4"]]
+  ;:main oceanus.riverbed.main
   :min-lein-version "2.0.0"
   )
 

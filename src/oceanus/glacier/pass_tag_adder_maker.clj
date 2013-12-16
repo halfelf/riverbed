@@ -1,12 +1,12 @@
 (ns oceanus.glacier.pass-tag-adder-maker
   (:gen-class))
 
-(defn generate-seg-bolt
+(defn generate-tag-bolt
   []
   (str 
-    "(defbolt pass-tag-adder \"tagged-weibo\" [tuple collector]\n"
-    "  (let [weibo-map (.getValue tuple 0)\n"
-    "        new-record (merge {:pass false} weibo-map)]\n"
+    "(defbolt pass-tag-adder [\"tagged-weibo\"] [tuple collector]\n"
+    "  (let [weibo (.getValue tuple 0)\n"
+    "        new-record (merge {:passed false} weibo)]\n"
     "    (emit-bolt! collector [new-record] :anchor tuple)\n"
-    "    (ack! collector tuple)))\n"))
+    "    (ack! collector tuple)))\n\n"))
 
