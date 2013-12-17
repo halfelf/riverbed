@@ -16,7 +16,7 @@
       (str      "  (let [weibo (.getValue tuple 0)\n"
                 "        passed (or (weibo :passed) \n"
         (format "          (boolean (every? (set (weibo :seged-text)) %s)))\n" words)
-                "        new-record (merge {:passed passed} weibo)]\n" 
+                "        new-record (merge weibo {:passed passed})]\n" 
                 "    (emit-bolt! collector [new-record] :anchor tuple)\n"
                 "    (ack! collector tuple)))\n\n")
       )))
@@ -36,7 +36,7 @@
       (str      "  (let [weibo (.getValue tuple 0)\n"
                 "        passed (or (weibo :passed) \n" 
         (format "          (boolean (some (set (weibo :seged-text)) %s)))\n" words)
-                "        new-record (merge {:passed passed} weibo)]\n" 
+                "        new-record (merge weibo {:passed passed})]\n" 
                 "    (emit-bolt! collector [new-record] :anchor tuple)\n"
                 "    (ack! collector tuple)))\n\n")
       )))
@@ -55,8 +55,8 @@
       ;;;;;;;;;;;;;;;;;;;;;;;;;;
       (str      "  (let [weibo (.getValue tuple 0)\n"
                 "        passed (or (weibo :passed) \n"
-        (format "          (boolean (some (set (weibo :seged-text)) %s)))\n" words)
-                "        new-record (merge {:passed (not passed)} weibo)]\n" 
+        (format "          (not (boolean (some (set (weibo :seged-text)) %s))))\n" words)
+                "        new-record (merge weibo {:passed passed})]\n" 
                 "    (emit-bolt! collector [new-record] :anchor tuple)\n"
                 "    (ack! collector tuple)))\n\n")
       )))

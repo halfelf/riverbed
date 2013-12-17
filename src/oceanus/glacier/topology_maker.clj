@@ -44,10 +44,14 @@
            (str
              (format "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n" 
                      after-filter-id (dec after-filter-id))
-                "                    pass-filter)\n"))
-         (format "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n"
-                 (inc after-filter-id) after-filter-id)
-         "                   mq-spitter-bolt)\n" 
-         "  }))\n\n"
-  )))
+               "                    pass-filter)\n"
+             (format "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n"
+                     (inc after-filter-id) after-filter-id)
+               "                   mq-spitter-bolt)\n")
+           (str 
+             (format "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n"
+                     after-filter-id (dec after-filter-id))
+               "                   mq-spitter-bolt)\n"))
+         "  }))\n\n")
+  ))
 

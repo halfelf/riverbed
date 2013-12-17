@@ -33,12 +33,12 @@
       ;;;;;;;;;;;;;;;;;;;;
       "(def ^{:const true}\n" 
       "  props {\"zookeeper.connect\"           \"general:2181\"\n"
-      "            \"zk.connectiontimeout.ms\"     1000000\n"
-      "            \"group.id\"                    \"manual\",\n"
-      "            \"fetch.size\"                  2097152,\n"
-      "            \"socket.receive.buffer.bytes\" 65536,\n"
-      "            \"auto.commit.interval.ms\"     1000,\n"
-      "            \"queued.max.messages\"         100})\n"
+      "         \"zk.connectiontimeout.ms\"     1000000\n"
+      "         \"group.id\"                    \"manual\",\n"
+      "         \"fetch.size\"                  2097152,\n"
+      "         \"socket.receive.buffer.bytes\" 65536,\n"
+      "         \"auto.commit.interval.ms\"     1000,\n"
+      "         \"queued.max.messages\"         100})\n\n"
       ;;;;;;;;;;;;;;;;;;;;
       "(def ^{:const true}\n"
       "  exchange-name \"\")\n\n"
@@ -101,7 +101,7 @@
     ; header, spout, bolts(tag, filters, spitter), topo-def, tail
     (spit main-clj (clj-header-maker topo-name))
     (spit main-clj (kafka-spout/default-kafka-spout "store_topic") :append true)
-    (spit main-clj (segmentation-bolt-maker/generate-seg-bolt "text") :append true)
+    (spit main-clj (segmentation-bolt-maker/generate-seg-bolt "txt") :append true)
     (if (= "or" condition)
       (spit main-clj (pass-tag-adder-maker/generate-tag-bolt) :append true))
     (if-not (empty? (topo-spec :include-any))
