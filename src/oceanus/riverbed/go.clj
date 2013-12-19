@@ -81,27 +81,41 @@
   rabbit-conf {:host  "general"
                :queue "hello"})
 
+(def ^{:const true}
+  mongo-conf  {:host  "store"
+               :port  27017
+               :db    "sina_status"})
+
+
+(defn- check-empty-or-split
+  "if empty str => [], else => split"
+  [maybe-words]
+  (if (empty? maybe-words)
+    []
+    (string/split maybe-words #",")))
 
 (defn go-topo
   "Generate a project dir, define topo, define nodes, run"
   [spec]
   (let [topo-name (spec :name)
+        topo-id   (spec :id)
         topo-spec (-> spec
-                    (update-in [:or_keywords]  #(string/split % #"\s"))
-                    (update-in [:and_keywords] #(string/split % #"\s"))
-                    (update-in [:not_keywords] #(string/split % #"\s"))
-                    (rename-keys {:or_keywords :include-any
+                    (update-in [:or_keywords]  check-empty-or-split)
+                    (update-in [:and_keywords] check-empty-or-split)
+                    (update-in [:not_keywords] check-empty-or-split)
+                    (update-in [:conditions] #(or % "and"))
+                    (rename-keys {:or_keywords  :include-any
                                   :and_keywords :include-all
                                   :not_keywords :exclude-any}))
-        condition (topo-spec :conditions)
-        topo-root (str "/streaming/" (topo-spec :id))
+        condition (topo-spec :conditions) 
+        topo-root (str "/streaming/" topo-id)
         src-root  (str topo-root "/src/clj/oceanus/anduin/")
         main-clj  (format "%s/%s.clj" src-root topo-name)]
     (fs/copy-dir "resources/skeleton" topo-root)
     ; header, spout, bolts(tag, filters, spitter...etc), topo-def, tail
     (spit main-clj (clj-header-maker topo-name))
     (spit main-clj (kafka-spout/default-kafka-spout "store_topic") :append true)
-    (spit main-clj (tid-adder-maker/generate-tid-bolt (topo-spec :id)) :append true)
+    (spit main-clj (tid-adder-maker/generate-tid-bolt topo-id) :append true)
     (spit main-clj (segmentation-bolt-maker/generate-seg-bolt "txt") :append true)
     (if (= "or" condition)
       (spit main-clj (pass-tag-adder-maker/generate-tag-bolt) :append true))
@@ -116,10 +130,10 @@
                        (topo-spec :exclude-any) condition) :append true))
     (if (= "or" condition)
       (spit main-clj (pass-filter-maker/generate-pass-bolt) :append true))
-    (spit main-clj (spitter-bolt-maker/mq-spitter-bolt rabbit-conf) :append true)
+    (spit main-clj (spitter-bolt-maker/mq-spitter-bolt rabbit-conf mongo-conf (str topo-id)) :append true)
     (spit main-clj (topology-maker/generate-topology topo-spec) :append true)
     (spit main-clj (clj-tail-maker topo-name) :append true)
-    (with-sh-dir (str "/streaming/" (topo-spec :id))
+    (with-sh-dir topo-root
       (sh "sh" "-c" (format "lein run -m oceanus.anduin.%s 1>info.log 2>error.log &" topo-name)))
   ))
 
@@ -128,8 +142,11 @@
   (let [topo-id   (spec :id)
         topo-name (spec :name)
         topo-root (str "/streaming/" topo-id)]
-    (with-sh-dir (str "/streaming/" topo-id)
-      (sh "sh" "-c" "ps aux|grep java|grep \"/streaming/14\"|grep -v \"grep\"|awk '{print $2}'|xargs kill"))
+    (with-sh-dir topo-root
+      (sh "sh" "-c" 
+          (format 
+            "ps aux|grep java|grep \"/streaming/%d\"|grep -v \"grep\"|awk '{print $2}'|xargs kill" 
+            topo-id)))
     (fs/delete-dir topo-root)
   ))
 

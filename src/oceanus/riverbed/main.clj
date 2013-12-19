@@ -10,9 +10,9 @@
 
 
 (def mysql-db {:subprotocol "mysql"
-                 :subname "//192.168.122.1:3306/insight_online_5"
-                 :user "topo_gen"
-                 :password "Topo^Gen"})
+               :subname "//192.168.122.1:3306/insight_online_5"
+               :user "topo_gen"
+               :password "Topo^Gen"})
 (def topo-table "inhome_datafilters")
 
 (defn hello-handler [req]
@@ -81,5 +81,5 @@
            (DELETE "/" [] stop-topology-by-id))
   (route/not-found "404"))
 
-;(run-server (api #'all-routes) {:port 8010})
+(run-server (api #'all-routes) {:port 8010})
 

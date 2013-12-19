@@ -6,21 +6,23 @@
   [id condition words-map]
   (loop [bolts-spec   ""
          current-id   id 
-         rest-filters (keys words-map)]
+         rest-filters (keys words-map)
+         filter-empty (empty? (words-map (first rest-filters)))]
     (if (empty? rest-filters)
       [current-id bolts-spec]
       (recur (str bolts-spec 
-                  (if (empty? (words-map (first rest-filters)))
+                  (if filter-empty
                     nil
                     (format "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n                     %s)\n"
                             current-id 
                             (dec current-id)
-                            (str condition "-" (name (first rest-filters)))))) 
-             (inc current-id) 
-             (rest rest-filters)))))
+                            (str condition "-" (name (first rest-filters))))))
+             (if filter-empty
+               current-id 
+               (inc current-id))
+             (rest rest-filters)
+             (empty? (words-map (first (rest rest-filters))))))))
 
-;{:name "test", :conditions "and", :not_keywords "bla", 
-; :or_keywords "bar", :and_keywords "foo", :in_user_id 1, :id 14}
          
 (defn generate-topology
   "Generates whole topology DSL from a hashmap."
