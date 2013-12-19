@@ -1,7 +1,7 @@
 (ns oceanus.riverbed.go
   (:require [clojure.string :as string])
   (:use clojure.set)
-  (:use [clojure.java.shell :only [sh]])
+  (:use [clojure.java.shell]) 
   (:require [me.raynes.fs :as fs])
   (:require [oceanus.glacier 
              [topology-maker :as topology-maker]
@@ -9,6 +9,7 @@
              [kafka-spout :as kafka-spout]
              [segmentation-bolt-maker :as segmentation-bolt-maker]
              [spitter-bolt-maker :as spitter-bolt-maker]
+             [tid-adder-maker :as tid-adder-maker]
              [pass-tag-adder-maker :as pass-tag-adder-maker]
              [pass-filter-maker :as pass-filter-maker]])
   (:gen-class))
@@ -34,7 +35,7 @@
       "(def ^{:const true}\n" 
       "  props {\"zookeeper.connect\"           \"general:2181\"\n"
       "         \"zk.connectiontimeout.ms\"     1000000\n"
-      "         \"group.id\"                    \"manual\",\n"
+      "         \"group.id\"                    \"auto\",\n"
       "         \"fetch.size\"                  2097152,\n"
       "         \"socket.receive.buffer.bytes\" 65536,\n"
       "         \"auto.commit.interval.ms\"     1000,\n"
@@ -93,14 +94,14 @@
                                   :and_keywords :include-all
                                   :not_keywords :exclude-any}))
         condition (topo-spec :conditions)
-        topo-root (str "/streaming/" topo-name)
+        topo-root (str "/streaming/" (topo-spec :id))
         src-root  (str topo-root "/src/clj/oceanus/anduin/")
         main-clj  (format "%s/%s.clj" src-root topo-name)]
-    (prn topo-spec)
     (fs/copy-dir "resources/skeleton" topo-root)
-    ; header, spout, bolts(tag, filters, spitter), topo-def, tail
+    ; header, spout, bolts(tag, filters, spitter...etc), topo-def, tail
     (spit main-clj (clj-header-maker topo-name))
     (spit main-clj (kafka-spout/default-kafka-spout "store_topic") :append true)
+    (spit main-clj (tid-adder-maker/generate-tid-bolt (topo-spec :id)) :append true)
     (spit main-clj (segmentation-bolt-maker/generate-seg-bolt "txt") :append true)
     (if (= "or" condition)
       (spit main-clj (pass-tag-adder-maker/generate-tag-bolt) :append true))
@@ -118,5 +119,17 @@
     (spit main-clj (spitter-bolt-maker/mq-spitter-bolt rabbit-conf) :append true)
     (spit main-clj (topology-maker/generate-topology topo-spec) :append true)
     (spit main-clj (clj-tail-maker topo-name) :append true)
+    (with-sh-dir (str "/streaming/" (topo-spec :id))
+      (sh "sh" "-c" (format "lein run -m oceanus.anduin.%s 1>info.log 2>error.log &" topo-name)))
+  ))
+
+(defn stop-topo
+  [spec]
+  (let [topo-id   (spec :id)
+        topo-name (spec :name)
+        topo-root (str "/streaming/" topo-id)]
+    (with-sh-dir (str "/streaming/" topo-id)
+      (sh "sh" "-c" "ps aux|grep java|grep \"/streaming/14\"|grep -v \"grep\"|awk '{print $2}'|xargs kill"))
+    (fs/delete-dir topo-root)
   ))
 
