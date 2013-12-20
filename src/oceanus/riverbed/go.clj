@@ -97,12 +97,12 @@
 (defn go-topo
   "Generate a project dir, define topo, define nodes, run"
   [spec]
-  (let [topo-name (spec :name)
-        topo-id   (spec :id)
-        topo-spec (-> spec
-                    (update-in [:or_keywords]  check-empty-or-split)
-                    (update-in [:and_keywords] check-empty-or-split)
-                    (update-in [:not_keywords] check-empty-or-split)
+  (let [topo-name   (spec :name)
+        topo-id     (spec :id)
+        split-words (reduce #(update-in %1 [%2] check-empty-or-split)
+                            spec
+                            [:or_keywords :and_keywords :not_keywords])
+        topo-spec (-> split-words
                     (update-in [:conditions] #(or % "and"))
                     (rename-keys {:or_keywords  :include-any
                                   :and_keywords :include-all
