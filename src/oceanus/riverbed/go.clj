@@ -17,10 +17,10 @@
 
 (defn clj-header-maker
   "Generate clj ns/require/import, other consts, etc."
-  [topo-name]
+  [topo-id]
   (str 
     (format
-      "(ns oceanus.anduin.%s\n" topo-name)
+      "(ns oceanus.anduin.%s\n" topo-id)
       "  (:use [oceanus.anduin.consumer :only [get-one-stream]])\n"
       "  (:use [oceanus.anduin.nlp])\n"
       "  (:require [langohr core channel queue basic])\n"
@@ -47,12 +47,12 @@
 
 
 (defn clj-tail-maker
-  [topo-name]
+  [topo-id]
   (str 
     "(defn run-local! []\n"
     "  (let [cluster (LocalCluster.)]\n"
     (format 
-    "    (.submitTopology cluster \"%s\" {TOPOLOGY-DEBUG false} (mk-topology))\n" topo-name)
+    "    (.submitTopology cluster \"%s\" {TOPOLOGY-DEBUG false} (mk-topology))\n" topo-id)
     "    (try\n"
     "      (loop [x 1]\n"
     "        (if (< x 0)\n"
@@ -97,8 +97,7 @@
 (defn go-topo
   "Generate a project dir, define topo, define nodes, run"
   [spec]
-  (let [topo-name   (spec :name)
-        topo-id     (spec :id)
+  (let [topo-id     (spec :topo-id)
         split-words (reduce #(update-in %1 [%2] check-empty-or-split)
                             spec
                             [:or_keywords :and_keywords :not_keywords])
@@ -110,11 +109,17 @@
         condition (topo-spec :conditions) 
         topo-root (str "/streaming/" topo-id)
         src-root  (str topo-root "/src/clj/oceanus/anduin/")
-        main-clj  (format "%s/%s.clj" src-root topo-name)]
+        main-clj  (format "%s/%s.clj" src-root topo-id)]
     (fs/copy-dir "resources/skeleton" topo-root)
     ; header, spout, bolts(tag, filters, spitter...etc), topo-def, tail
-    (spit main-clj (clj-header-maker topo-name))
-    (spit main-clj (kafka-spout/default-kafka-spout "store_topic") :append true)
+    (spit main-clj (clj-header-maker topo-id))
+    (doseq [[each-keyword serial]
+            (map list 
+                 (spec :keywords)
+                 (take (count (spec :keywords)) (iterate inc 1)))]
+      (spit main-clj 
+            (kafka-spout/default-kafka-spout each-keyword serial) 
+            :append true))
     (spit main-clj (tid-adder-maker/generate-tid-bolt topo-id) :append true)
     (spit main-clj (segmentation-bolt-maker/generate-seg-bolt "txt") :append true)
     (if (= "or" condition)
@@ -132,15 +137,14 @@
       (spit main-clj (pass-filter-maker/generate-pass-bolt) :append true))
     (spit main-clj (spitter-bolt-maker/mq-spitter-bolt rabbit-conf mongo-conf (str topo-id)) :append true)
     (spit main-clj (topology-maker/generate-topology topo-spec) :append true)
-    (spit main-clj (clj-tail-maker topo-name) :append true)
-    (with-sh-dir topo-root
-      (sh "sh" "-c" (format "lein run -m oceanus.anduin.%s 1>info.log 2>error.log &" topo-name)))
+    (spit main-clj (clj-tail-maker topo-id) :append true)
+    ;(with-sh-dir topo-root
+    ;  (sh "sh" "-c" (format "lein run -m oceanus.anduin.%s 1>info.log 2>error.log &" topo-id)))
   ))
 
 (defn stop-topo
   [spec]
-  (let [topo-id   (spec :id)
-        topo-name (spec :name)
+  (let [topo-id   (spec :topo-id)
         topo-root (str "/streaming/" topo-id)]
     (with-sh-dir topo-root
       (sh "sh" "-c" 

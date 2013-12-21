@@ -2,12 +2,15 @@
   (:gen-class))
 
 (defn default-kafka-spout
-  [kafka-topic]
+  [kafka-topic serial-number]
   (str
-    "(defspout kafka-spout [\"sina_status\"]\n"
+    (format
+    "(defspout kafka-spout-%d [\"sina_status\"]\n"
+      serial-number)
     "  [conf context collector]\n"
-    (format "  (let [stream (atom (get-one-stream props \"store_topic\"))]\n" 
-            kafka-topic)
+    (format 
+    "  (let [stream (atom (get-one-stream props \"%s\"))]\n" 
+      kafka-topic)
     "    (spout\n"
     "      (nextTuple []\n"
     "        (doseq [raw-one-log @stream]\n"
@@ -17,3 +20,4 @@
     "      (ack [id]\n"
     "        ))))\n\n"
   ))
+
