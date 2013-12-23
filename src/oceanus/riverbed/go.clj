@@ -35,7 +35,8 @@
       "(def ^{:const true}\n" 
       "  props {\"zookeeper.connect\"           \"general:2181\"\n"
       "         \"zk.connectiontimeout.ms\"     1000000\n"
-      "         \"group.id\"                    \"auto\",\n"
+    (format
+      "         \"group.id\"                    \"%s\",\n" topo-id)
       "         \"fetch.size\"                  2097152,\n"
       "         \"socket.receive.buffer.bytes\" 65536,\n"
       "         \"auto.commit.interval.ms\"     1000,\n"
@@ -113,12 +114,12 @@
     (fs/copy-dir "resources/skeleton" topo-root)
     ; header, spout, bolts(tag, filters, spitter...etc), topo-def, tail
     (spit main-clj (clj-header-maker topo-id))
-    (doseq [[each-keyword serial]
+    (doseq [[one-topic serial]
             (map list 
-                 (spec :keywords)
+                 (spec :topic-ids)
                  (take (count (spec :keywords)) (iterate inc 1)))]
       (spit main-clj 
-            (kafka-spout/default-kafka-spout each-keyword serial) 
+            (kafka-spout/default-kafka-spout one-topic serial) 
             :append true))
     (spit main-clj (tid-adder-maker/generate-tid-bolt topo-id) :append true)
     (spit main-clj (segmentation-bolt-maker/generate-seg-bolt "txt") :append true)
@@ -138,8 +139,8 @@
     (spit main-clj (spitter-bolt-maker/mq-spitter-bolt rabbit-conf mongo-conf (str topo-id)) :append true)
     (spit main-clj (topology-maker/generate-topology topo-spec) :append true)
     (spit main-clj (clj-tail-maker topo-id) :append true)
-    ;(with-sh-dir topo-root
-    ;  (sh "sh" "-c" (format "lein run -m oceanus.anduin.%s 1>info.log 2>error.log &" topo-id)))
+    (with-sh-dir topo-root
+      (sh "sh" "-c" (format "lein run -m oceanus.anduin.%s 1>info.log 2>error.log &" topo-id)))
   ))
 
 (defn stop-topo
