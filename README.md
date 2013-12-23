@@ -1,4 +1,5 @@
 riverbed
 ========
 
-Webserver for storing/updating storm topology spec.
+Webserver for storing/updating/starting storm topology.
+
