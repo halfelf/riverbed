@@ -28,6 +28,7 @@
         options      (merge {:body text-json} common-headers)
         senti-result (client/post senti-uri options)]
     (try
-      (-> senti-result :body (parse-string true) :Result last)
+      (-> senti-result :body (parse-string true) :Result first)
        ; `senti-result` form:  {:body "{\"Result\" [-1, -0.xxxx]}"}
       (catch Exception e nil))))
+
