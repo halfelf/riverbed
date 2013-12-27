@@ -17,6 +17,7 @@
                :subname "//192.168.122.1:3306/insight_online_5"
                :user "topo_gen"
                :password "Topo^Gen"})
+(def mongo-db "sandbox_mongo_1")
 (def topo-table "inhome_datatasks")
 (def topo-filter-table "inhome_datatasks_filters")
 (def filter-table "inhome_datafilters")
@@ -25,15 +26,12 @@
 (defn- get-topic-ids
   [keywords]
   (let [_   (mg/connect! mongo-conf)
-        _   (mg/set-db!  (mg/get-db "sandbox_mongo_1"))
+        _   (mg/set-db!  (mg/get-db mongo-db))
         ids (vec (map 
               #(->> {:key %} (mc/find-one-as-map "keywords") :_id str)
               keywords))]
-   ; (try 
     (mg/disconnect!)
     ids))
-   ;   (catch Exception e (str "caught exception: " (.getMessage e)))
-   ;   (finally (mg/disconnect!)))))
 
 
 (defn- get-topo-spec
@@ -42,7 +40,7 @@
                             topo-table
                             topo-id)
         topo-info (first (jdbc/query mysql-db [query-task]))]
-    (if topo-info
+    (if (and topo-info (not= 2 (topo-info :status)))
       ; topo exists
       (let [query-topo-filter (format "select * from %s where datatasks_id=\"%s\""
                                       topo-filter-table
@@ -77,10 +75,15 @@
   [req]
   (let [topo-id (:tpid (:route-params req))
         topo-spec (get-topo-spec topo-id)]
-    (go/go-topo topo-spec)
-    {:status 201
-     :headers {"Content-Type" "text/plain"}
-     :body "created"}
+    (if-not (nil? topo-spec)
+      (do
+        (go/go-topo topo-spec)
+        {:status 201
+        :headers {"Content-Type" "text/plain"}
+        :body "created"})
+      {:status  404
+       :headers {"Content-Type" "application/json"}
+       :body    "no such topo"})
   ))
 
 (defn update-topology-by-id

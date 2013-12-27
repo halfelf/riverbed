@@ -9,6 +9,7 @@
              [kafka-spout :as kafka-spout]
              [segmentation-bolt-maker :as segmentation-bolt-maker]
              [spitter-bolt-maker :as spitter-bolt-maker]
+             [sentiment-judger-maker :as sentiment-judger-maker]
              [tid-adder-maker :as tid-adder-maker]
              [pass-tag-adder-maker :as pass-tag-adder-maker]
              [pass-filter-maker :as pass-filter-maker]])
@@ -121,6 +122,13 @@
       (spit main-clj 
             (kafka-spout/default-kafka-spout one-topic serial) 
             :append true))
+    (doseq [[one-target serial]
+            (map list 
+                 (spec :keywords)
+                 (take (count (spec :keywords)) (iterate inc 1)))]
+      (spit main-clj 
+            (sentiment-judger-maker/generate-sentiment-judger one-target serial) 
+            :append true))
     (spit main-clj (tid-adder-maker/generate-tid-bolt topo-id) :append true)
     (spit main-clj (segmentation-bolt-maker/generate-seg-bolt "txt") :append true)
     (if (= "or" condition)
@@ -136,7 +144,11 @@
                        (topo-spec :exclude-any) condition) :append true))
     (if (= "or" condition)
       (spit main-clj (pass-filter-maker/generate-pass-bolt) :append true))
-    (spit main-clj (spitter-bolt-maker/mq-spitter-bolt rabbit-conf mongo-conf (str topo-id)) :append true)
+    (spit main-clj (spitter-bolt-maker/mq-spitter-bolt 
+                     rabbit-conf 
+                     mongo-conf 
+                     (str "task" topo-id)) 
+          :append true)
     (spit main-clj (topology-maker/generate-topology topo-spec) :append true)
     (spit main-clj (clj-tail-maker topo-id) :append true)
     (with-sh-dir topo-root

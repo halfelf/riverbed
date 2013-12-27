@@ -33,6 +33,16 @@
           (take spouts-count (iterate inc 1)))
        (clojure.string/join "\n")))
 
+
+(defn generate-sentiment-spec
+  [spouts-count]
+  (->> (map #(format
+               "     \"%d\" (bolt-spec {\"%d\" :shuffle} sentiment-judger-%d)"
+               (+ spouts-count %) % %)
+         ;"    \"6\" (bolt-spec {\"1\" :shuffle} sentiment-bolt-%d)\n"
+          (take spouts-count (iterate inc 1)))
+       (clojure.string/join "\n")))
+
          
 (defn generate-topology
   "Generates whole topology DSL from a hashmap."
@@ -41,34 +51,46 @@
                                  [:include-any :include-all :exclude-any])
         condition    (topo-map :conditions) ; should be "or" or "and"
         spouts-count (count (topo-map :keywords))
-        current-id   (if (= "and" condition)  ; skip some id which
-                       (+ 3 spouts-count)     ;   reserved for tid-adder and
-                       (+ 4 spouts-count))    ;   segmentation and pass-tag-adder
+        tid-adder-id (-> spouts-count (* 2) (+ 1))
+        seg-bolt-id  (inc tid-adder-id)
+        pass-tag-id  (inc seg-bolt-id) 
+        current-id   (if (= "and" condition) 
+                       (inc seg-bolt-id)    
+                       (inc pass-tag-id))  
         [after-filter-id filters-str] (generate-filters-spec
                                         current-id condition words-map)]
+    ; There are x spouts, x sentiment bolts, where x is count of keywords crawled
+    ;   1 tid adder bolt, 
+    ;   1 segmentation bolt, 
+    ;   1 or 0 pass-tag-adder bolt, (1 if condition is `or`)
+    ;   y string bolts, where y is 0-3, (3 kind of string filters in total)
+    ;   1 or 0 pass-filter bolt, (1 if condition is `or`)
+    ;   1 spitter bolt
     (str "(defn mk-topology []\n"
          "  (topology\n"
          "    {\n"
          ;"    {\"1\" (spout-spec kafka-spout)}\n"
          (generate-spouts-spec spouts-count)
          "}\n"
+         "    {\n"
+         (generate-sentiment-spec spouts-count)
          (format
-         "    {\"%d\" (bolt-spec {"
-           (inc spouts-count))
+         "\n     \"%d\" (bolt-spec {"
+           tid-adder-id)
          (reduce #(str %1 "\"" %2 "\" :shuffle ")  
                  "" 
-                 (take 3 (iterate inc 1)))  ; generate several "%d :shuffle"
+                 (take spouts-count (iterate inc (inc spouts-count))))  ; generate several "%d :shuffle"
          "}\n"
          "                     tid-adder)\n"
          (format
          "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n"
-           (+ 2 spouts-count) (inc spouts-count))
+           seg-bolt-id tid-adder-id)
          "                     segmentation-bolt)\n"
          (if (= "or" condition)
            (str 
              (format
              "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n" 
-               (+ 3 spouts-count) (+ 2 spouts-count))
+               pass-tag-id seg-bolt-id)
              "                    pass-tag-adder)\n"))
          filters-str
          (if (= "or" condition)

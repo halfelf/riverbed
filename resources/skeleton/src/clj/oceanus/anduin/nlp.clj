@@ -10,21 +10,24 @@
    :accept :json
    :conn-timeout 1000})
 
-(defn ^vector zh-segmentation [^String text]
+(defn zh-segmentation [text]
   "Segmentation for Chinese text"
   (let [text-json   (generate-string {"text" text} {:escape-non-ascii true})
         seg-uri     (str inner-api "/segmentation/")
-        options     (merge {:body text-json} common-headers)
-        seg-result  (client/post seg-uri options)]
-    (vec (parse-string (seg-result :body)))))
+        options     (merge {:body text-json} common-headers)]
+    (try
+      (-> (client/post seg-uri options) :body parse-string vec)
+      (catch Exception e nil))))
 
-(defn ^float zh-sentiment [^String text ^String key-word]
+(defn zh-sentiment [text key-word]
   "Chinese sentiment judge, return value in [-1.0, 1.0]"
   (let [text-json    (generate-string 
                        {"text" text "target" key-word} 
                        {:escape-non-ascii true})
-        senti-uri    (str inner-api "/sentiment/document")
+        senti-uri    (str inner-api "/sentiment/weibo/")
         options      (merge {:body text-json} common-headers)
         senti-result (client/post senti-uri options)]
-    ((parse-string (senti-result :body)) "Result")))
-
+    (try
+      (-> senti-result :body (parse-string true) :Result last)
+       ; `senti-result` form:  {:body "{\"Result\" [-1, -0.xxxx]}"}
+      (catch Exception e nil))))
