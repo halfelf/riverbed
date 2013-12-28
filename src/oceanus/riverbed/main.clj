@@ -3,6 +3,7 @@
   (:require [compojure.route :as route])
   (:require [clojure.java.jdbc :as jdbc])
   (:require [clojure.string :as string])
+  (:require [me.raynes.fs :as fs])
   (:use compojure.core
         compojure.handler
         org.httpkit.server)
@@ -120,10 +121,10 @@
 (defn stop-topology-by-id
   [req]
   (let [topo-id (:tpid (:route-params req))
-        topo-spec (get-topo-spec topo-id)]
-    (if-not (nil? topo-spec)
+        topo-root (str "/streaming/" topo-id)]
+    (if (fs/exists? topo-root)
       (do
-        (go/stop-topo topo-spec)
+        (go/stop-topo topo-id topo-root)
         {:status  200
          :headers {"Content-Type" "application/json"}
          :body    "deleted"})

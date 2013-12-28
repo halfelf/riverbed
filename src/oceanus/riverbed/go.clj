@@ -89,14 +89,11 @@
   ))
 
 (defn stop-topo
-  [spec]
-  (let [topo-id   (spec :topo-id)
-        topo-root (str "/streaming/" topo-id)]
-    (with-sh-dir topo-root
-      (sh "sh" "-c" 
-          (format 
-            "ps aux|grep java|grep \"/streaming/%d\"|grep -v \"grep\"|awk '{print $2}'|xargs kill" 
-            topo-id)))
-    (fs/delete-dir topo-root)
-  ))
+  [topo-id topo-root]
+  (with-sh-dir topo-root
+    (sh "sh" "-c" 
+        (format 
+          "ps aux|grep java|grep \"/streaming/%s\"|grep -v \"grep\"|awk '{print $2}'|xargs kill" 
+          topo-id)))
+  (fs/delete-dir topo-root))
 
