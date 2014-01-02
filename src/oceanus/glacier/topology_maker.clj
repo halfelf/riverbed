@@ -2,7 +2,7 @@
   (:require [cheshire.core :refer :all])
   (:gen-class))
 
-(defn generate-filters-spec
+(defn- generate-filters-spec
   [id condition words-map]
   (loop [bolts-spec   ""
          current-id   id 
@@ -24,7 +24,7 @@
              (empty? (words-map (first (rest rest-filters))))))))
 
 
-(defn generate-spouts-spec
+(defn- generate-spouts-spec
   [spouts-count]
   (->> (map #(format
                "     \"%d\" (spout-spec kafka-spout-%d)"
@@ -34,7 +34,7 @@
        (clojure.string/join "\n")))
 
 
-(defn generate-sentiment-spec
+(defn- generate-sentiment-spec
   [spouts-count]
   (->> (map #(format
                "     \"%d\" (bolt-spec {\"%d\" :shuffle} sentiment-judger-%d)"
