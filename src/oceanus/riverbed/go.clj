@@ -12,6 +12,8 @@
              [spitter-bolt-maker :as spitter-bolt-maker]
              [sentiment-judger-maker :as sentiment-judger-maker]
              [tid-adder-maker :as tid-adder-maker]
+             [ads-tagger-maker :as ads-tagger-maker]
+             [similar-tagger-maker :as similar-tagger-maker]
              [pass-tag-adder-maker :as pass-tag-adder-maker]
              [pass-filter-maker :as pass-filter-maker]])
   (:gen-class))
@@ -81,6 +83,8 @@
                        (topo-spec :exclude-any) condition) :append true))
     (if (= "or" condition)
       (spit main-clj (pass-filter-maker/generate-pass-bolt) :append true))
+    (spit main-clj (ads-tagger-maker/generate-ads-tagger) :append true)
+    (spit main-clj (similar-tagger-maker/generate-similar-tagger) :append true)
     (spit main-clj (spitter-bolt-maker/mq-spitter-bolt rabbit-conf) :append true)
     (spit main-clj (topology-maker/generate-topology topo-spec) :append true)
     (spit main-clj (ht-maker/clj-tail-maker topo-id) :append true)

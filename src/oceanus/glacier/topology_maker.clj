@@ -57,14 +57,19 @@
         current-id   (if (= "and" condition) 
                        (inc seg-bolt-id)    
                        (inc pass-tag-id))  
-        [after-filter-id filters-str] (generate-filters-spec
-                                        current-id condition words-map)]
+        [after-str-filter-id filters-str] (generate-filters-spec
+                                        current-id condition words-map)
+        after-filter-id (if (= "and" condition)
+                          after-str-filter-id
+                          (inc after-str-filter-id))]
     ; There are x spouts, x sentiment bolts, where x is count of keywords crawled
     ;   1 tid adder bolt, 
     ;   1 segmentation bolt, 
     ;   1 or 0 pass-tag-adder bolt, (1 if condition is `or`)
     ;   y string bolts, where y is 0-3, (3 kind of string filters in total)
     ;   1 or 0 pass-filter bolt, (1 if condition is `or`)
+    ;   1 ad tagger bolt
+    ;   1 similar text tagger bolt
     ;   1 spitter bolt
     (str "(defn mk-topology []\n"
          "  (topology\n"
@@ -93,18 +98,31 @@
                pass-tag-id seg-bolt-id)
              "                    pass-tag-adder)\n"))
          filters-str
+
+         ; then the may-exists pass-tag-filter
          (if (= "or" condition)
-           (str
-             (format "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n" 
-                     after-filter-id (dec after-filter-id))
-               "                    pass-filter)\n"
-             (format "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n"
-                     (inc after-filter-id) after-filter-id)
-               "                     mq-spitter-bolt)\n")
            (str 
-             (format "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n"
-                     after-filter-id (dec after-filter-id))
-               "                     mq-spitter-bolt)\n"))
+             (format "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n" 
+                     after-str-filter-id (dec after-str-filter-id))
+             "                    pass-filter)\n"))
+         
+         ; ad-tagger
+         (str
+           (format "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n"
+                   after-filter-id (dec after-filter-id))
+           "                     ads-tagger)\n")
+
+         ; similar-tagger
+         (str
+           (format "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n"
+                   (inc after-filter-id) after-filter-id)
+           "                     similar-tagger)\n")
+
+         ; spitter
+         (str
+           (format "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n"
+                   (+ 2 after-filter-id) (inc after-filter-id))
+           "                     mq-spitter-bolt)\n")
          "  }))\n\n")
   ))
 

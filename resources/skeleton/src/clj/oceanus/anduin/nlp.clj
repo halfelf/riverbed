@@ -25,10 +25,9 @@
                        {"text" text "target" key-word} 
                        {:escape-non-ascii true})
         senti-uri    (str inner-api "/sentiment/weibo/")
-        options      (merge {:body text-json} common-headers)
-        senti-result (client/post senti-uri options)]
+        options      (merge {:body text-json} common-headers)]
     (try
-      (-> senti-result :body (parse-string true) :Result first)
+      (-> (client/post senti-uri options) :body (parse-string true) :Result first)
        ; `senti-result` form:  {:body "{\"Result\" [-1, -0.xxxx]}"}
       (catch Exception e nil))))
 
