@@ -13,7 +13,7 @@
       "  (:import [backtype.storm StormSubmitter LocalCluster])\n"
       "  (:use [backtype.storm clojure config])\n"
       "  (:require [cheshire.core :refer :all])\n"
-      "  (:require [monger core collection])\n"
+      ;"  (:require [monger core collection])\n"
       "  (:import [org.bson.types ObjectId]\n"
       "           [com.mongodb DB WriteConcern])\n"
       "  (:gen-class))\n\n"

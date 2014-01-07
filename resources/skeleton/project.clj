@@ -11,7 +11,7 @@
                  [clj-http "0.7.7"]
                  [cheshire "5.2.0"]
                  [com.novemberain/langohr "1.7.0" :exclusions [com.google.guava/guava]]
-                 [com.novemberain/monger "1.5.0" :exclusions [com.google.guava/guava]]
+                 ;[com.novemberain/monger "1.5.0" :exclusions [com.google.guava/guava]]
                  [commons-collections/commons-collections "3.2.1"]
                  [org.easytesting/fest-assert-core "2.0M8"]
                  [org.mockito/mockito-all "1.9.0"]
