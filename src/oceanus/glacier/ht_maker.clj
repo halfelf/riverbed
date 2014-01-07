@@ -20,13 +20,11 @@
       ;;;;;;;;;;;;;;;;;;;;
       "(def ^{:const true}\n" 
       "  props {\"zookeeper.connect\"           \"general:2181\"\n"
-      "         \"zk.connectiontimeout.ms\"     1000000\n"
     (format
       "         \"group.id\"                    \"%s\",\n" topo-id)
-      "         \"fetch.size\"                  2097152,\n"
       "         \"socket.receive.buffer.bytes\" 65536,\n"
       "         \"auto.commit.interval.ms\"     1000,\n"
-      "         \"queued.max.messages\"         100})\n\n"
+      "         \"queued.max.messages.chunks\"  1000})\n\n"
       ;;;;;;;;;;;;;;;;;;;;
       "(def ^{:const true}\n"
       "  exchange-name \"outfall\")\n\n"
