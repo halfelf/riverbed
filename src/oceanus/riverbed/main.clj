@@ -23,6 +23,16 @@
 (def topo-filter-table "inhome_datatasks_filters")
 (def filter-table "inhome_datafilters")
 
+(def no-such-topo 
+     {:status  404
+      :headers {"Content-Type" "application/json"}
+      :body    "no such topo"})
+(def received
+     {:status  200
+      :headers {"Content-Type" "application/json"}
+      :body    "received"})
+      
+
 
 (defn- get-topic-ids
   [keywords]
@@ -74,72 +84,78 @@
 
 (defn generate-topology 
   [req]
-  (let [topo-id (:tpid (:route-params req))
-        topo-spec (get-topo-spec topo-id)]
-    (if-not (nil? topo-spec)
-      (do
-        (go/go-topo topo-spec)
-        {:status 201
-        :headers {"Content-Type" "text/plain"}
-        :body "created"})
-      {:status  404
-       :headers {"Content-Type" "application/json"}
-       :body    "no such topo"})
-  ))
+  (with-channel req channel
+    (let [topo-id (:tpid (:route-params req))
+          topo-spec (get-topo-spec topo-id)]
+      (if topo-spec
+        (do
+          (send! channel received)
+          (go/go-topo topo-spec))
+        (send! channel no-such-topo)))
+    ))
 
 (defn update-topology-by-id
   [req]
-  (let [topo-id (:tpid (:route-params req))
-        topo-spec (get-topo-spec topo-id)]
-    (if-not (nil? topo-spec)
-      (do
-        (go/stop-topo topo-spec)
-        (go/go-topo topo-spec)
-        {:status  201
-         :headers {"Content-Type" "application/json"}
-         :body    "updated"})
-      {:status  404
-       :headers {"Content-Type" "application/json"}
-       :body    "no such topo"})
-  ))
+  (with-channel req channel
+    (let [topo-id (:tpid (:route-params req))
+          topo-spec (get-topo-spec topo-id)]
+      (if topo-spec
+        (do
+          (send! channel received)
+          (go/stop-topo topo-spec)
+          (Thread/sleep 60000)  ; wait for killing topology
+          (go/go-topo topo-spec))
+        (send! channel no-such-topo)))
+    ))
 
 ;  (let [body (parse-string (String. (.bytes (:body req))))
 
-(defn get-topology-by-id
-  [req]
-  (let [topo-id (:tpid (:route-params req))
-        topo-spec (get-topo-spec topo-id)]
-    (if-not (nil? topo-spec)
-      {:status  200
-       :headers {"Content-Type" "application/json"}
-       :body    (generate-string topo-spec)}
-      {:status  404
-       :headers {"Content-Type" "application/json"}
-       :body    "no such topo"})
-  ))
-
 (defn stop-topology-by-id
   [req]
-  (let [topo-id (:tpid (:route-params req))
-        topo-root (str "/streaming/" topo-id)]
-    (if (fs/exists? topo-root)
-      (do
-        (go/stop-topo topo-id topo-root)
-        {:status  200
-         :headers {"Content-Type" "application/json"}
-         :body    "deleted"})
-      {:status  404
-       :headers {"Content-Type" "application/json"}
-       :body    "no such topo"})
-  ))
+  (with-channel req channel
+    (let [topo-id (:tpid (:route-params req))
+          topo-spec (get-topo-spec topo-id)]
+      (if topo-spec
+        (do
+          (send! channel received)
+          (go/stop-topo topo-id))
+        (send! channel no-such-topo))
+    )))
+
+(defn deactivate-handler
+  [req]
+  (with-channel req channel
+    (let [topo-id (:tpid (:route-params req))
+          topo-spec (get-topo-spec topo-id)]
+      (if topo-spec
+        (do
+          (send! channel received)
+          (go/deactivate topo-id))
+        (send! channel no-such-topo))
+      )))
+
+(defn activate-handler
+  [req]
+  (with-channel req channel
+    (let [topo-id (:tpid (:route-params req))
+          topo-spec (get-topo-spec topo-id)]
+      (if topo-spec
+        (do
+          (send! channel received)
+          (go/activate topo-id))
+        (send! channel no-such-topo))
+      )))
+
 
 (defroutes all-routes
+  ; all handlers which will execute `storm` command are async
   (GET "/" [] hello-handler)
   (context "/topology/:tpid" []
-           (GET    "/" [] get-topology-by-id)
-           (POST   "/" [] generate-topology)
-           (PUT    "/" [] update-topology-by-id)
-           (DELETE "/" [] stop-topology-by-id))
+           (POST   "/" [] generate-topology)     ; async
+           (PUT    "/" [] update-topology-by-id) ; async
+           (DELETE "/" [] stop-topology-by-id))  ; async
+  (GET "/topology/deactivate/:tpid" [] deactivate-handler) ;async
+  (GET "/topology/activate/:tpid" [] activate-handler) ;async
   (route/not-found "404"))
 
 (run-server (api #'all-routes) {:port 8010})

@@ -13,9 +13,6 @@
       "  (:import [backtype.storm StormSubmitter LocalCluster])\n"
       "  (:use [backtype.storm clojure config])\n"
       "  (:require [cheshire.core :refer :all])\n"
-      ;"  (:require [monger core collection])\n"
-      "  (:import [org.bson.types ObjectId]\n"
-      "           [com.mongodb DB WriteConcern])\n"
       "  (:gen-class))\n\n"
       ;;;;;;;;;;;;;;;;;;;;
       "(def ^{:const true}\n" 
@@ -51,7 +48,7 @@
     "  (StormSubmitter/submitTopology\n"
     "   name\n"
     "   {TOPOLOGY-DEBUG false\n"
-    "    TOPOLOGY-WORKERS 4}\n"
+    "    TOPOLOGY-WORKERS 1}\n"
     "   (mk-topology)))\n\n"
     ;;;;;;;;;;
     "(defn -main\n"

@@ -1,9 +1,10 @@
 (ns oceanus.riverbed.go
   (:require [clojure.string :as string])
-  (:use clojure.set)
+  (:use [clojure.set])
   (:use [clojure.java.shell]) 
   (:require [me.raynes.fs :as fs])
   (:require [oceanus.glacier 
+             [project-maker :as project-maker]
              [ht-maker :as ht-maker]
              [topology-maker :as topology-maker]
              [str-bolts-maker :as str-bolts-maker]
@@ -50,8 +51,10 @@
         condition (topo-spec :conditions) 
         topo-root (str "/streaming/" topo-id)
         src-root  (str topo-root "/src/clj/oceanus/anduin/")
-        main-clj  (format "%s/%s.clj" src-root topo-id)]
+        main-clj  (format "%s/%s.clj" src-root topo-id)
+        project-clj (format "%s/project.clj" topo-root)]
     (fs/copy-dir "resources/skeleton" topo-root)
+    (spit project-clj (project-maker/project-def topo-id))
     ; header, spout, bolts(tag, filters, spitter...etc), topo-def, tail
     (spit main-clj (ht-maker/clj-header-maker topo-id))
     (doseq [[one-topic serial]
@@ -88,16 +91,30 @@
     (spit main-clj (spitter-bolt-maker/mq-spitter-bolt rabbit-conf) :append true)
     (spit main-clj (topology-maker/generate-topology topo-spec) :append true)
     (spit main-clj (ht-maker/clj-tail-maker topo-id) :append true)
+    ; package & submit to cluster
     (with-sh-dir topo-root
-      (sh "sh" "-c" (format "lein run -m oceanus.anduin.%s 1>info.log 2>error.log &" topo-id)))
-  ))
+      (sh "sh" "-c" "lein compile"))
+    (with-sh-dir topo-root
+      (sh "sh" "-c" "lein uberjar"))
+    (with-sh-dir topo-root
+      (sh "sh" "-c" (format "storm jar target/task%s-0.1.0-standalone.jar oceanus.anduin.%s task%s" topo-id topo-id topo-id)))
+    ))
 
 (defn stop-topo
-  [topo-id topo-root]
-  (with-sh-dir topo-root
-    (sh "sh" "-c" 
-        (format 
-          "ps aux|grep java|grep \"/streaming/%s\"|grep -v \"grep\"|awk '{print $2}'|xargs kill" 
-          topo-id)))
-  (fs/delete-dir topo-root))
+  [topo-id]
+  (let [topo-root (str "/streaming/" topo-id)]
+    (sh "sh" "-c"
+      (format "storm kill task%s" topo-id))
+    (fs/delete-dir topo-root)))
+    
+(defn deactivate
+  [topo-id]
+  (sh "sh" "-c"
+      (format "storm deactivate task%s" topo-id)))
+
+(defn activate
+  [topo-id]
+  (sh "sh" "-c"
+      (format "storm activate task%s" topo-id)))
+
 
