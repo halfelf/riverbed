@@ -8,6 +8,7 @@
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [http-kit "2.1.16"]
                  [javax.servlet/servlet-api "2.5"] ; see ring github page
+                 [clj-http "0.7.8"]
                  [compojure "1.1.6"]
                  [com.novemberain/monger "1.7.0-beta1"]
                  [cheshire "5.2.0"]

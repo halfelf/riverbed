@@ -52,7 +52,8 @@
         condition    (topo-map :conditions) ; should be "or" or "and"
         spouts-count (count (topo-map :keywords))
         tid-adder-id (-> spouts-count (* 2) (+ 1))
-        seg-bolt-id  (inc tid-adder-id)
+        sundry-id    (inc tid-adder-id)
+        seg-bolt-id  (inc sundry-id)
         pass-tag-id  (inc seg-bolt-id) 
         current-id   (if (= "and" condition) 
                        (inc seg-bolt-id)    
@@ -64,9 +65,10 @@
                           (inc after-str-filter-id))]
     ; There are x spouts, x sentiment bolts, where x is count of keywords crawled
     ;   1 tid adder bolt, 
+    ;   1 sundries extractor bolt
     ;   1 segmentation bolt, 
     ;   1 or 0 pass-tag-adder bolt, (1 if condition is `or`)
-    ;   y string bolts, where y is 0-3, (3 kind of string filters in total)
+    ;   y string bolts, where y is 0-3, (3 kinds of string filters in total)
     ;   1 or 0 pass-filter bolt, (1 if condition is `or`)
     ;   1 ad tagger bolt
     ;   1 similar text tagger bolt
@@ -83,13 +85,18 @@
          "\n     \"%d\" (bolt-spec {"
            tid-adder-id)
          (reduce #(str %1 "\"" %2 "\" :shuffle ")  
-                 "" 
-                 (take spouts-count (iterate inc (inc spouts-count))))  ; generate several "%d :shuffle"
+                 ""  
+                 ; generate several "%d :shuffle"
+                 (take spouts-count (iterate inc (inc spouts-count)))) 
          "}\n"
          "                     tid-adder)\n"
          (format
          "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n"
-           seg-bolt-id tid-adder-id)
+           sundry-id tid-adder-id)
+         "                     sundries-extractor)\n"
+         (format
+         "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n"
+           seg-bolt-id sundry-id)
          "                     segmentation-bolt)\n"
          (if (= "or" condition)
            (str 

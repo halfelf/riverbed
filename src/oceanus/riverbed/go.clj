@@ -3,12 +3,14 @@
   (:use [clojure.set])
   (:use [clojure.java.shell]) 
   (:require [me.raynes.fs :as fs])
+  (:require [oceanus.riverbed.created-hook :as created-hook])
   (:require [oceanus.glacier 
              [project-maker :as project-maker]
              [ht-maker :as ht-maker]
              [topology-maker :as topology-maker]
              [str-bolts-maker :as str-bolts-maker]
              [kafka-spout :as kafka-spout]
+             [sundries-extractor-maker :as sundries-extractor-maker]
              [segmentation-bolt-maker :as segmentation-bolt-maker]
              [spitter-bolt-maker :as spitter-bolt-maker]
              [sentiment-judger-maker :as sentiment-judger-maker]
@@ -38,7 +40,7 @@
 
 (defn go-topo
   "Generate a project dir, define topo, define nodes, run"
-  [spec]
+  [spec is-local]
   (let [topo-id     (spec :topo-id)
         split-words (reduce #(update-in %1 [%2] check-empty-or-split)
                             spec
@@ -53,8 +55,16 @@
         src-root  (str topo-root "/src/clj/oceanus/anduin/")
         main-clj  (format "%s/%s.clj" src-root topo-id)
         project-clj (format "%s/project.clj" topo-root)]
+    ; add every keyword to custom segmentation dict
+    (doseq [one-keyword (spec :keywords)]
+      (created-hook/insert-keyword-to-dict one-keyword))
+
+    ; copy static structure and files
     (fs/copy-dir "resources/skeleton" topo-root)
+
+    ; generate project.clj
     (spit project-clj (project-maker/project-def topo-id))
+
     ; header, spout, bolts(tag, filters, spitter...etc), topo-def, tail
     (spit main-clj (ht-maker/clj-header-maker topo-id))
     (doseq [[one-topic serial]
@@ -72,7 +82,8 @@
             (sentiment-judger-maker/generate-sentiment-judger one-target serial) 
             :append true))
     (spit main-clj (tid-adder-maker/generate-tid-bolt topo-id) :append true)
-    (spit main-clj (segmentation-bolt-maker/generate-seg-bolt "txt") :append true)
+    (spit main-clj (sundries-extractor-maker/generate-sundries-extractor) :append true)
+    (spit main-clj (segmentation-bolt-maker/generate-seg-bolt) :append true)
     (if (= "or" condition)
       (spit main-clj (pass-tag-adder-maker/generate-tag-bolt) :append true))
     (if-not (empty? (topo-spec :include-any))
@@ -91,13 +102,16 @@
     (spit main-clj (spitter-bolt-maker/mq-spitter-bolt rabbit-conf) :append true)
     (spit main-clj (topology-maker/generate-topology topo-spec) :append true)
     (spit main-clj (ht-maker/clj-tail-maker topo-id) :append true)
+
     ; package & submit to cluster
-    (with-sh-dir topo-root
-      (sh "sh" "-c" "lein compile"))
-    (with-sh-dir topo-root
-      (sh "sh" "-c" "lein uberjar"))
-    (with-sh-dir topo-root
-      (sh "sh" "-c" (format "storm jar target/task%s-0.1.0-standalone.jar oceanus.anduin.%s task%s" topo-id topo-id topo-id)))
+    (if-not is-local
+      (do
+        (with-sh-dir topo-root
+          (sh "sh" "-c" "lein compile"))
+        (with-sh-dir topo-root
+          (sh "sh" "-c" "lein uberjar"))
+        (with-sh-dir topo-root
+          (sh "sh" "-c" (format "storm jar target/task%s-0.1.0-standalone.jar oceanus.anduin.%s task%s" topo-id topo-id topo-id)))))
     ))
 
 (defn stop-topo

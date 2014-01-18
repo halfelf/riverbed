@@ -7,6 +7,7 @@
   (str 
     (format
       "(ns oceanus.anduin.%s\n" topo-id)
+      "  (:require [clojure.string :as string])\n"
       "  (:use [oceanus.anduin.consumer :only [get-one-stream]])\n"
       "  (:use [oceanus.anduin.nlp])\n"
       "  (:require [langohr core channel queue basic exchange])\n"

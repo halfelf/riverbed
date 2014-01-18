@@ -11,7 +11,7 @@
             "      (nextTuple []\n"
             "        (doseq [raw-one-log @stream]\n"
             "          (Thread/sleep 100)\n"
-            "          (let [one-log (-> (.message raw-one-log) String. parse-string)]\n"
+            "          (let [one-log (-> (.message raw-one-log) String. (parse-string true))]\n"
             "            (emit-spout! collector [one-log]))))\n"
             "      (ack [id]\n"
             "        ))))\n\n"

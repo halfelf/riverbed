@@ -9,7 +9,9 @@
         org.httpkit.server)
   (:require [monger.core :as mg])
   (:require [monger.collection :as mc])
-  (:require [oceanus.riverbed.go :as go])
+  (:require [oceanus.riverbed
+             [go :as go]
+             [created-hook :as created-hook]])
   (:gen-class))
 
 
@@ -25,11 +27,11 @@
 
 (def no-such-topo 
      {:status  404
-      :headers {"Content-Type" "application/json"}
+      :headers {"Content-Type" "text/plain"}
       :body    "no such topo"})
 (def received
      {:status  200
-      :headers {"Content-Type" "application/json"}
+      :headers {"Content-Type" "text/plain"}
       :body    "received"})
       
 
@@ -82,6 +84,18 @@
    :headers {"Content-Type" "text/html"}
    :body    "This is dataminr riverbed server."})
 
+(defn generate-test-topology 
+  [req]
+  (with-channel req channel
+    (let [topo-id (:tpid (:route-params req))
+          topo-spec (get-topo-spec topo-id)]
+      (if topo-spec
+        (do
+          (send! channel received)
+          (go/go-topo topo-spec true)) ; false means not local mode
+        (send! channel no-such-topo)))
+    ))
+
 (defn generate-topology 
   [req]
   (with-channel req channel
@@ -90,7 +104,7 @@
       (if topo-spec
         (do
           (send! channel received)
-          (go/go-topo topo-spec))
+          (go/go-topo topo-spec false)) ; false means not local mode
         (send! channel no-such-topo)))
     ))
 
@@ -104,11 +118,9 @@
           (send! channel received)
           (go/stop-topo topo-spec)
           (Thread/sleep 60000)  ; wait for killing topology
-          (go/go-topo topo-spec))
+          (go/go-topo topo-spec false))
         (send! channel no-such-topo)))
     ))
-
-;  (let [body (parse-string (String. (.bytes (:body req))))
 
 (defn stop-topology-by-id
   [req]
@@ -156,6 +168,7 @@
            (DELETE "/" [] stop-topology-by-id))  ; async
   (GET "/topology/deactivate/:tpid" [] deactivate-handler) ;async
   (GET "/topology/activate/:tpid" [] activate-handler) ;async
+  (POST "/topology/test/:tpid" [] generate-test-topology)
   (route/not-found "404"))
 
 (run-server (api #'all-routes) {:port 8010})

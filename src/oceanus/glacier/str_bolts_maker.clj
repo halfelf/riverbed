@@ -8,14 +8,14 @@
     (if (= "and" condition)
       ;;;;;;;;;;;;;;;;;;;;;;;;;;
       (str      "  (let [weibo (.getValue tuple 0)]\n"
-        (format "    (if (every? (set (weibo :seged-text)) %s)\n" words)
+        (format "    (if (every? (set (weibo :seg)) %s)\n" words)
                 "      (do\n"
                 "        (emit-bolt! collector [weibo] :anchor tuple)\n"
                 "        (ack! collector tuple)))))\n\n")
       ;;;;;;;;;;;;;;;;;;;;;;;;;;
       (str      "  (let [weibo (.getValue tuple 0)\n"
                 "        passed (or (weibo :passed) \n"
-        (format "          (boolean (every? (set (weibo :seged-text)) %s)))\n" words)
+        (format "          (boolean (every? (set (weibo :seg)) %s)))\n" words)
                 "        new-record (merge weibo {:passed passed})]\n" 
                 "    (emit-bolt! collector [new-record] :anchor tuple)\n"
                 "    (ack! collector tuple)))\n\n")
@@ -28,14 +28,14 @@
     (if (= "and" condition)
       ;;;;;;;;;;;;;;;;;;;;;;;;;;
       (str      "  (let [weibo (.getValue tuple 0)]\n"
-        (format "    (if (some (set (weibo :seged-text)) %s)\n" words)
+        (format "    (if (some (set (weibo :seg)) %s)\n" words)
                 "      (do\n"
                 "        (emit-bolt! collector [weibo] :anchor tuple)\n"
                 "        (ack! collector tuple)))))\n\n")
       ;;;;;;;;;;;;;;;;;;;;;;;;;;
       (str      "  (let [weibo (.getValue tuple 0)\n"
                 "        passed (or (weibo :passed) \n" 
-        (format "          (boolean (some (set (weibo :seged-text)) %s)))\n" words)
+        (format "          (boolean (some (set (weibo :seg)) %s)))\n" words)
                 "        new-record (merge weibo {:passed passed})]\n" 
                 "    (emit-bolt! collector [new-record] :anchor tuple)\n"
                 "    (ack! collector tuple)))\n\n")
@@ -48,14 +48,14 @@
     (if (= "and" condition)
       ;;;;;;;;;;;;;;;;;;;;;;;;;;
       (str      "  (let [weibo (.getValue tuple 0)]\n"
-        (format "    (if-not (some (set (weibo :seged-text)) %s)\n" words)
+        (format "    (if-not (some (set (weibo :seg)) %s)\n" words)
                 "      (do\n"
                 "        (emit-bolt! collector [weibo] :anchor tuple)\n"
                 "        (ack! collector tuple)))))\n\n")
       ;;;;;;;;;;;;;;;;;;;;;;;;;;
       (str      "  (let [weibo (.getValue tuple 0)\n"
                 "        passed (or (weibo :passed) \n"
-        (format "          (not (boolean (some (set (weibo :seged-text)) %s))))\n" words)
+        (format "          (not (boolean (some (set (weibo :seg)) %s))))\n" words)
                 "        new-record (merge weibo {:passed passed})]\n" 
                 "    (emit-bolt! collector [new-record] :anchor tuple)\n"
                 "    (ack! collector tuple)))\n\n")
