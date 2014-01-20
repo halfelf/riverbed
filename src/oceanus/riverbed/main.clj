@@ -116,7 +116,7 @@
       (if topo-spec
         (do
           (send! channel received)
-          (go/stop-topo topo-spec)
+          (go/stop-topo topo-id)
           (Thread/sleep 60000)  ; wait for killing topology
           (go/go-topo topo-spec false))
         (send! channel no-such-topo)))
