@@ -120,16 +120,16 @@
            "                     ads-tagger)\n")
 
          ; similar-tagger
-;         (str
-;           (format "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n"
-;                   (inc after-filter-id) after-filter-id)
-;           "                     similar-tagger)\n")
+         (str
+           (format "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n"
+                   (inc after-filter-id) after-filter-id)
+           "                     similar-tagger)\n")
 
          ; spitter
          (str
            (format "     \"%d\" (bolt-spec {\"%d\" :shuffle}\n"
-;                   (+ 2 after-filter-id) (inc after-filter-id))
-                   (inc after-filter-id) after-filter-id)
+                   (+ 2 after-filter-id) (inc after-filter-id))
+;                   (inc after-filter-id) after-filter-id)
            "                     mq-spitter-bolt)\n")
          "  }))\n\n")
   ))
