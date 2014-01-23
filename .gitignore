@@ -6,3 +6,5 @@ target/
 .lein-deps-sum
 .lein-repl-history
 resources/skeleton/logs/
+resources/config.edn
+.nrepl-port

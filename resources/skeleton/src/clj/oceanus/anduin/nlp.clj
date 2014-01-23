@@ -28,7 +28,7 @@
         options      (merge {:body text-json} common-headers)]
     (try
       (-> (client/post senti-uri options) :body (parse-string true) :Result first)
-       ; `senti-result` form:  {:body "{\"Result\" [-1, -0.xxxx]}"}
+       ; POST return like this:  {:body "{\"Result\" [-1, -0.xxxx]}"}
       (catch Exception e nil))))
 
 (defn ads-recognize [text]
@@ -40,9 +40,11 @@
       (-> (client/post ad-uri options) :body parse-string)
       (catch Exception e false))))
 
-(defn similar-judge [text id]
-  "Judge if the text is similar to anyone stored, return 0 or weibo-id now"
-  (let [text-json (generate-string {"text" text "_id" id} {:escape-non-ascii true})
+(defn similar-judge [text id source-type]
+  "Judge if the text is similar to anyone stored, return 0 or id of the data source now"
+  (let [text-json (generate-string 
+                    {"text" text "_id" id "source" source-type} 
+                    {:escape-non-ascii true})
         sim-uri   (str inner-api "/similar/")
         options   (merge {:body text-json} common-headers)]
     (try

@@ -1,0 +1,20 @@
+{
+  :mongo-conf {:host "store" 
+               :port 27017}
+
+  :mysql-db {:subprotocol "mysql"
+             :subname "//192.168.122.1:3306/insight_online_5"
+             :user "topo_gen"
+             :password "Topo^Gen"}
+
+  :mongo-db "sandbox_mongo_1"
+  :topo-table "inhome_datatasks"
+  :topo-filter-table "inhome_datatasks_filters"
+  :filter-table "inhome_datafilters"
+
+  :innerapi "http://localhost:8010"
+  :rabbit {:host  "localhost"}
+  :kafka  {:zk-host "localhost"
+           :zk-port 2181}
+}
+

@@ -5,8 +5,8 @@
   []
   (str 
     "(defbolt pass-tag-adder [\"tagged-weibo\"] [tuple collector]\n"
-    "  (let [weibo (.getValue tuple 0)\n"
-    "        new-record (merge weibo {:passed false})]\n"
+    "  (let [info-map (.getValue tuple 0)\n"
+    "        new-record (merge info-map {:passed false})]\n"
     "    (emit-bolt! collector [new-record] :anchor tuple)\n"
     "    (ack! collector tuple)))\n\n"))
 

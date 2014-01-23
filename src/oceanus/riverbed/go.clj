@@ -22,17 +22,8 @@
   (:gen-class))
 
 
-(def ^{:const true}
-  rabbit-conf {:host  "general"})
-
-(def ^{:const true}
-  mongo-conf  {:host  "store"
-               :port  27017
-               :db    "sina_status"})
-
-
 (defn- check-empty-or-split
-  "if empty str => [], else => split"
+  "if empty str => [], else => split it"
   [maybe-words]
   (if (empty? maybe-words)
     []
@@ -40,7 +31,7 @@
 
 (defn go-topo
   "Generate a project dir, define topo, define nodes, run"
-  [spec is-local]
+  [spec is-local conf]
   (let [topo-id     (spec :topo-id)
         split-words (reduce #(update-in %1 [%2] check-empty-or-split)
                             spec
@@ -57,8 +48,11 @@
         project-clj (format "%s/project.clj" topo-root)]
     ; add every keyword to custom segmentation dict
     (doseq [one-keyword (spec :keywords)]
-      (created-hook/insert-keyword-to-dict one-keyword))
+      (created-hook/insert-keyword-to-dict (conf :innerapi) one-keyword))
 
+    ; delete previous job files if any (there is none if everything ok)
+    (if (fs/exists? topo-root)
+      (fs/delete-dir topo-root))
     ; copy static structure and files
     (fs/copy-dir "resources/skeleton" topo-root)
 
@@ -66,7 +60,7 @@
     (spit project-clj (project-maker/project-def topo-id))
 
     ; header, spout, bolts(tag, filters, spitter...etc), topo-def, tail
-    (spit main-clj (ht-maker/clj-header-maker topo-id))
+    (spit main-clj (ht-maker/clj-header-maker topo-id (conf :kafka)))
     (doseq [[one-topic serial]
             (map list 
                  (spec :topic-ids)
@@ -98,8 +92,8 @@
     (if (= "or" condition)
       (spit main-clj (pass-filter-maker/generate-pass-bolt) :append true))
     (spit main-clj (ads-tagger-maker/generate-ads-tagger) :append true)
-    (spit main-clj (similar-tagger-maker/generate-similar-tagger) :append true)
-    (spit main-clj (spitter-bolt-maker/mq-spitter-bolt rabbit-conf) :append true)
+    (spit main-clj (similar-tagger-maker/generate-similar-tagger (spec :source-type)) :append true)
+    (spit main-clj (spitter-bolt-maker/mq-spitter-bolt (conf :rabbit)) :append true)
     (spit main-clj (topology-maker/generate-topology topo-spec) :append true)
     (spit main-clj (ht-maker/clj-tail-maker topo-id) :append true)
 

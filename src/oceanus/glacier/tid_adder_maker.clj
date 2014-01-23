@@ -5,8 +5,8 @@
   [tid]
   (str 
             "(defbolt tid-adder [\"with-tid\"] [tuple collector]\n"
-            "  (let [weibo (.getValue tuple 0)\n"
-    (format "        new-record (merge weibo {:tid %s})]\n" tid)
+            "  (let [info-map (.getValue tuple 0)\n"
+    (format "        new-record (merge info-map {:tid %s})]\n" tid)
             "    (emit-bolt! collector [new-record] :anchor tuple)\n"
             "    (ack! collector tuple)))\n\n"))
 

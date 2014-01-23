@@ -5,9 +5,9 @@
   []
   (str 
     "(defbolt pass-filter [\"passed-weibo\"] [tuple collector]\n"
-    "  (let [weibo (.getValue tuple 0)]\n"
-    "    (if (= true (weibo :passed))\n"
+    "  (let [info-map (.getValue tuple 0)]\n"
+    "    (if (= true (info-map :passed))\n"
     "      (do\n"
-    "        (emit-bolt! collector [weibo] :anchor tuple)\n"
+    "        (emit-bolt! collector [info-map] :anchor tuple)\n"
     "        (ack! collector tuple)))))\n\n"))
 

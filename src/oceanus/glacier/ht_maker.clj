@@ -3,7 +3,7 @@
 
 (defn clj-header-maker
   "Generate clj ns/require/import, other consts, etc."
-  [topo-id]
+  [topo-id kafka-conf]
   (str 
     (format
       "(ns oceanus.anduin.%s\n" topo-id)
@@ -17,7 +17,9 @@
       "  (:gen-class))\n\n"
       ;;;;;;;;;;;;;;;;;;;;
       "(def ^{:const true}\n" 
-      "  props {\"zookeeper.connect\"           \"general:2181\"\n"
+    (format
+      "  props {\"zookeeper.connect\"           \"%s:%s\"\n" 
+      (kafka-conf :zk-host) (kafka-conf :zk-port))
     (format
       "         \"group.id\"                    \"%s\",\n" topo-id)
       "         \"socket.receive.buffer.bytes\" 65536,\n"
