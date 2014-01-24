@@ -38,40 +38,53 @@
     (mg/disconnect!)
     ids))
 
+(defn- join-may-empty
+  [str1 str2]
+  (cond
+    (string/blank? str1) str2
+    (string/blank? str2) str1
+    :else (string/join "," [str1 str2])))
+
+(defn- merge-filters
+  [current-spec task-filter]
+  (let [filter-id (task-filter :datafilters_id)
+        query-filter (format "select * from %s where id=\"%d\""
+                             filter-table
+                             filter-id)
+        this-filter (-> (jdbc/query mysql-db [query-filter])
+                        first
+                        (select-keys 
+                          [:and_keywords :or_keywords :not_keywords]))]
+    (merge-with join-may-empty current-spec this-filter)
+    ))
 
 (defn- get-topo-spec
   [topo-id]
   (let [query-task (format "select * from %s where id=\"%s\""
-                            (config :topo-table)
+                            topo-table
                             topo-id)
-        topo-info (first (jdbc/query (config :mysql-db) [query-task]))]
+        topo-info (first (jdbc/query mysql-db [query-task]))]
     (if (and topo-info (not= 2 (topo-info :status)))
       ; topo exists
       (let [query-topo-filter (format "select * from %s where datatasks_id=\"%s\""
-                                      (config :topo-filter-table)
+                                      topo-filter-table
                                       topo-id)
-            task-to-filter (first (jdbc/query (config :mysql-db) [query-topo-filter]))
-            keywords       (string/split (topo-info :seeds) #",")
-            source-type    (keyword (topo-info :source))
-            topic-ids      (get-topic-ids keywords)]
-        (if task-to-filter
-          ; topo has a filter
-          (let [filter-id (task-to-filter :datafilters_id)
-                query-filter (format "select * from %s where id=\"%d\""
-                                     (config :filter-table)
-                                     filter-id)]
-            (merge (first (jdbc/query (config :mysql-db) [query-filter]))
-                   {:topo-id topo-id 
-                    :topic-ids topic-ids
-                    :source-type source-type
-                    :keywords keywords}))
+            ;task-to-filter (first (jdbc/query mysql-db [query-topo-filter]))
+            task-to-filters (jdbc/query mysql-db [query-topo-filter])
+            keywords        (string/split (topo-info :seeds) #",")
+            topic-ids       (get-topic-ids keywords)]
+        (if task-to-filters
+          ; topo has some filter(s)
+          (reduce merge-filters {:topo-id   topo-id
+                                 :topic-ids topic-ids
+                                 :keywords  keywords}
+                  task-to-filters)
           ; topo without filter
           {:topo-id   topo-id 
            :topic-ids topic-ids
-           :source-type source-type
            :and_keywords "" :or_keywords "" :not_keywords ""
            :keywords keywords}))
-      ; no topo available
+      ; no topo exists
       nil)))
 
 
