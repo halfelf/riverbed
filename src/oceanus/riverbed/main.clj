@@ -49,9 +49,9 @@
   [current-spec task-filter]
   (let [filter-id (task-filter :datafilters_id)
         query-filter (format "select * from %s where id=\"%d\""
-                             filter-table
+                             (config :filter-table)
                              filter-id)
-        this-filter (-> (jdbc/query mysql-db [query-filter])
+        this-filter (-> (jdbc/query (config :mysql-db) [query-filter])
                         first
                         (select-keys 
                           [:and_keywords :or_keywords :not_keywords]))]
@@ -61,16 +61,15 @@
 (defn- get-topo-spec
   [topo-id]
   (let [query-task (format "select * from %s where id=\"%s\""
-                            topo-table
+                            (config :topo-table)
                             topo-id)
-        topo-info (first (jdbc/query mysql-db [query-task]))]
+        topo-info (first (jdbc/query (config :mysql-db) [query-task]))]
     (if (and topo-info (not= 2 (topo-info :status)))
       ; topo exists
       (let [query-topo-filter (format "select * from %s where datatasks_id=\"%s\""
-                                      topo-filter-table
+                                      (config :topo-filter-table)
                                       topo-id)
-            ;task-to-filter (first (jdbc/query mysql-db [query-topo-filter]))
-            task-to-filters (jdbc/query mysql-db [query-topo-filter])
+            task-to-filters (jdbc/query (config :mysql-db) [query-topo-filter])
             keywords        (string/split (topo-info :seeds) #",")
             topic-ids       (get-topic-ids keywords)]
         (if task-to-filters
