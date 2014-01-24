@@ -167,6 +167,29 @@
       )))
 
 
+(defn delete-consumer-handler
+  [req]
+  (let [topo-id (:tpid (:route-params req))
+        zk-connect (format "%s:%s" 
+                           (-> config :kafka :zk-host)
+                           (-> config :kafka :zk-port))]
+    (go/delete-consumer-info topo-id zk-connect)
+    {:status  200
+     :headers {"Content-Type" "text/plain"}
+     :body    "ok"}))
+      
+(defn delete-topic-handler
+  [req]
+  (let [topic (:topic (:route-params req))
+        zk-connect (format "%s:%s" 
+                           (-> config :kafka :zk-host)
+                           (-> config :kafka :zk-port))]
+    (go/delete-topic topic zk-connect)
+    {:status  200
+     :headers {"Content-Type" "text/plain"}
+     :body    "ok"}))
+
+
 (defroutes all-routes
   ; all handlers which will execute `storm` command are async
   (GET "/" [] hello-handler)
@@ -177,6 +200,8 @@
   (GET "/topology/deactivate/:tpid" [] deactivate-handler) ;async
   (GET "/topology/activate/:tpid" [] activate-handler) ;async
   (POST "/topology/test/:tpid" [] generate-test-topology)
+  (DELETE "/consumer/:tpid" [] delete-consumer-handler)
+  (DELETE "/topic/:topic" [] delete-topic-handler)
   (route/not-found "404"))
 
 (run-server (api #'all-routes) {:port 8010})

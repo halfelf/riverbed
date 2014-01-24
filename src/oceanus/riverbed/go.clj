@@ -19,6 +19,8 @@
              [similar-tagger-maker :as similar-tagger-maker]
              [pass-tag-adder-maker :as pass-tag-adder-maker]
              [pass-filter-maker :as pass-filter-maker]])
+  (:import [kafka.utils ZKStringSerializer$ ZkUtils$])
+  (:import org.I0Itec.zkclient.ZkClient)
   (:gen-class))
 
 
@@ -113,7 +115,8 @@
   (let [topo-root (str "/streaming/" topo-id)]
     (sh "sh" "-c"
       (format "storm kill task%s" topo-id))
-    (fs/delete-dir topo-root)))
+    (fs/delete-dir topo-root))
+  )
     
 (defn deactivate
   [topo-id]
@@ -125,4 +128,26 @@
   (sh "sh" "-c"
       (format "storm activate task%s" topo-id)))
 
+
+(defn delete-topic
+  "both parameters are string. zk-connect is like localhost:2181"
+  [topic zk-connect] 
+  (let [zkclient (ZkClient. zk-connect 30000 30000 ZKStringSerializer$/MODULE$)
+        zkutils  (ZkUtils$/MODULE$)]
+    (try
+      (if (= true (.deleteRecursive zkclient (.getTopicPath zkutils topic)))
+        true
+        false)
+      (catch Exception e (str "caught exception: " (.getMessage e)))
+      (finally (if-not (= nil zkclient) (.close zkclient)))
+      )))
+
+(defn delete-consumer-info
+  [topo-id zk-connect]
+  (let [zkclient (ZkClient. zk-connect 30000 30000 ZKStringSerializer$/MODULE$)
+        zkutils  (ZkUtils$/MODULE$)]
+    (try
+      (.deletePathRecursive zkutils zkclient (format "/consumers/%s" topo-id)) 
+      (finally (if-not (= nil zkclient) (.close zkclient)))
+      )))
 
