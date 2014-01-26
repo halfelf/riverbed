@@ -9,7 +9,7 @@
     (str 
               "(defbolt similar-tagger [\"maybe-similar\"] [tuple collector]\n"
               "  (let [info-map      (.getValue tuple 0)\n"
-      (format "        is-similar (similar-judge (info-map :lite) (info-map :%s) %s)\n" field source-type)
+      (format "        is-similar (similar-judge (info-map :lite) (info-map :%s) \"%s\")\n" field source-type)
               "        new-record (merge info-map {:sim is-similar})]\n"
               "    (emit-bolt! collector [new-record] :anchor tuple)\n"
               "    (ack! collector tuple)))\n\n"))
