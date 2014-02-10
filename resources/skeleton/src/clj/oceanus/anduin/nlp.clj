@@ -43,8 +43,9 @@
 (defn similar-judge [text id source-type]
   "Judge if the text is similar to anyone stored, return 0 or id of the data source now"
   (let [text-json (generate-string 
-                    {"text" text "_id" id "source" source-type} 
+                    {"text" text "_id" id "source" source-type}
                     {:escape-non-ascii true})
+                  ; source-type: sinaweibo/youku
         sim-uri   (str inner-api "/similar/")
         options   (merge {:body text-json} common-headers)]
     (try
