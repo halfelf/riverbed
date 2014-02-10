@@ -16,5 +16,8 @@
   :rabbit {:host  "localhost"}
   :kafka  {:zk-host "localhost"
            :zk-port 2181}
+
+  :storm-dir "/home/halfelf/storm-0.9.0.1"
+  :zookeeper-logs "/var/zookeeper/version-2"
 }
 

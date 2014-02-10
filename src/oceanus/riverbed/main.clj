@@ -12,6 +12,7 @@
   (:require [monger.collection :as mc])
   (:require [oceanus.riverbed
              [go :as go]
+             [logs :as logs]
              [created-hook :as created-hook]])
   (:gen-class))
 
@@ -26,6 +27,10 @@
      {:status  200
       :headers {"Content-Type" "text/plain"}
       :body    "received"})
+(def wrong-type
+     {:status  404
+      :headers {"Content-Type" "text/plain"}
+      :body    "no such log type"})
       
 
 (defn- get-topic-ids
@@ -192,6 +197,16 @@
      :headers {"Content-Type" "text/plain"}
      :body    "ok"}))
 
+(defn delete-logs-handler
+  [req]
+  (with-channel req channel
+    (let [logtype (:logtype (:route-params req))
+          ]
+      (case logtype
+        "zookeeper" (do (send! channel received) (logs/del-zookeeper (config :zookeeper-logs)))
+        "storm"     (do (send! channel received) (logs/del-storm (config :storm-dir)))
+        (send! channel wrong-type))
+      )))
 
 (defroutes all-routes
   ; all handlers which will execute `storm` command are async
@@ -205,6 +220,7 @@
   (POST "/topology/test/:tpid" [] generate-test-topology)
   (DELETE "/consumer/:tpid" [] delete-consumer-handler)
   (DELETE "/topic/:topic" [] delete-topic-handler)
+  (DELETE "/logs/:logtype" [] delete-logs-handler)
   (route/not-found "404"))
 
 (run-server (api #'all-routes) {:port 8010})
