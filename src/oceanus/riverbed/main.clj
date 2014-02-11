@@ -200,8 +200,7 @@
 (defn delete-logs-handler
   [req]
   (with-channel req channel
-    (let [logtype (:logtype (:route-params req))
-          ]
+    (let [logtype (:logtype (:route-params req))]
       (case logtype
         "zookeeper" (do (send! channel received) (logs/del-zookeeper (config :zookeeper-logs)))
         "storm"     (do (send! channel received) (logs/del-storm (config :storm-dir)))

@@ -1,63 +1,38 @@
 (ns oceanus.glacier.str-bolts-maker
+  (:use [clojure.string :only [join]])
   (:gen-class))
 
-(defn include-all-maker
-  [words condition]
-  (str
-        (format "(defbolt %s-include-all [\"include-all\"] [tuple collector]\n" condition)
-    (if (= "and" condition)
-      ;;;;;;;;;;;;;;;;;;;;;;;;;;
-      (str      "  (let [info-map (.getValue tuple 0)]\n"
-        (format "    (if (every? (set (info-map :seg)) %s)\n" words)
-                "      (do\n"
-                "        (emit-bolt! collector [info-map] :anchor tuple)\n"
-                "        (ack! collector tuple)))))\n\n")
-      ;;;;;;;;;;;;;;;;;;;;;;;;;;
-      (str      "  (let [info-map (.getValue tuple 0)\n"
-                "        passed (or (info-map :passed) \n"
-        (format "          (boolean (every? (set (info-map :seg)) %s)))\n" words)
-                "        new-record (merge info-map {:passed passed})]\n" 
-                "    (emit-bolt! collector [new-record] :anchor tuple)\n"
-                "    (ack! collector tuple)))\n\n")
-      )))
 
-(defn include-any-maker
-  [words condition]
-  (str
-        (format "(defbolt %s-include-any [\"include-any\"] [tuple collector]\n" condition)
-    (if (= "and" condition)
-      ;;;;;;;;;;;;;;;;;;;;;;;;;;
-      (str      "  (let [info-map (.getValue tuple 0)]\n"
-        (format "    (if (some (set (info-map :seg)) %s)\n" words)
-                "      (do\n"
-                "        (emit-bolt! collector [info-map] :anchor tuple)\n"
-                "        (ack! collector tuple)))))\n\n")
-      ;;;;;;;;;;;;;;;;;;;;;;;;;;
-      (str      "  (let [info-map (.getValue tuple 0)\n"
-                "        passed (or (info-map :passed) \n" 
-        (format "          (boolean (some (set (info-map :seg)) %s)))\n" words)
-                "        new-record (merge info-map {:passed passed})]\n" 
-                "    (emit-bolt! collector [new-record] :anchor tuple)\n"
-                "    (ack! collector tuple)))\n\n")
-      )))
+(defn string-filter-maker
+  [topo-spec]
+  (let [condition (topo-spec :conditions)
+        include-any (topo-spec :include-any)
+        include-all (topo-spec :include-all)
+        exclude-any (topo-spec :exclude-any)
+        prediction (if (= "and" condition) "every" "some")]
+              "(defn include-any [text words]\n"
+      (format "  (if (re-find #\"(%s)\" text)\n" (clojure.string/join "|" words))
+              "    true\n"
+              "    false)\n\n"
 
-(defn exclude-any-maker
-  [words condition]
-  (str
-        (format "(defbolt %s-exclude-any [\"exclude-any\"] [tuple collector]\n" condition)
-    (if (= "and" condition)
-      ;;;;;;;;;;;;;;;;;;;;;;;;;;
-      (str      "  (let [info-map (.getValue tuple 0)]\n"
-        (format "    (if-not (some (set (info-map :seg)) %s)\n" words)
-                "      (do\n"
-                "        (emit-bolt! collector [info-map] :anchor tuple)\n"
-                "        (ack! collector tuple)))))\n\n")
-      ;;;;;;;;;;;;;;;;;;;;;;;;;;
-      (str      "  (let [info-map (.getValue tuple 0)\n"
-                "        passed (or (info-map :passed) \n"
-        (format "          (not (boolean (some (set (info-map :seg)) %s))))\n" words)
-                "        new-record (merge info-map {:passed passed})]\n" 
-                "    (emit-bolt! collector [new-record] :anchor tuple)\n"
-                "    (ack! collector tuple)))\n\n")
-      )))
+              "(defbolt string-filter-bolt [\"filtered\"] [tuple collector]\n"
+              "  (let [info-map (.getValue tuple 0)\n"
+              "        text     (info-map :txt)]\n"
+      (format "    (if (%s? true?\n" prediction)
+              "          [\n"
+
+(join "|" (map #(. Pattern quote %) b))
+
+
+            (if-not? (empty? include-any)
+      (format "           (boolean (re-find #\"%s\" text))\n" (join "|" include-any)))
+            (if-not? (empty? include-all)
+      (format "           (boolean (re-find #\"%s\" text))\n" (join (map #(str "(?=.*" % ")") include-any))))
+            (if-not? (empty? exclude-any)
+      (format "           (not (boolean (re-find #\"%s\" text)))\n" (join "|" exclude-any)))
+              "          ])\n"
+              "      (do\n"
+              "        (emit-bolt! collector [info-map] :anchor tuple)\n"
+              "        (ack! collector tuple)))))\n\n"
+      ))
 

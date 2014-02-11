@@ -3,10 +3,10 @@
 
 (defn clj-header-maker
   "Generate clj ns/require/import, other consts, etc."
-  [topo-id kafka-conf]
+  [kafka-conf topo-spec]
   (str 
     (format
-      "(ns oceanus.anduin.%s\n" topo-id)
+      "(ns oceanus.anduin.%s\n" (topo-spec :topo-id))
       "  (:require [clojure.string :as string])\n"
       "  (:use [oceanus.anduin.consumer :only [get-one-stream]])\n"
       "  (:use [oceanus.anduin.nlp])\n"
@@ -21,14 +21,17 @@
       "  props {\"zookeeper.connect\"           \"%s:%s\"\n" 
       (kafka-conf :zk-host) (kafka-conf :zk-port))
     (format
-      "         \"group.id\"                    \"%s\",\n" topo-id)
+      "         \"group.id\"                    \"%s\",\n" (topo-spec :topo-id))
       "         \"socket.receive.buffer.bytes\" 65536,\n"
       "         \"auto.commit.interval.ms\"     1000,\n"
       "         \"queued.max.messages.chunks\"  1000})\n\n"
       ;;;;;;;;;;;;;;;;;;;;
       "(def ^{:const true}\n"
       "  exchange-name \"outfall\")\n\n"
-  ))
+      "(def ^{:const true} ids-keys\n"
+      (str (zipmap (topo-spec :topic-ids) (topo-spec :keywords)))
+      "  )\n\n"
+    ))
 
 
 (defn clj-tail-maker

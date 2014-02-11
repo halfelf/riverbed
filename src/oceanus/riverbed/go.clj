@@ -43,12 +43,18 @@
                     (rename-keys {:or_keywords  :include-any
                                   :and_keywords :include-all
                                   :not_keywords :exclude-any}))
+        ; topo-spec example:
+        ; {:include-any [], :include-all [], :exclude-any [], 
+        ;  :conditions "and", :topo-id "50", 
+        ;  :topic-ids ["52e364139ab99d3e376b47fc"], 
+        ;  :keywords ["非诚勿扰"], :source-type "sinaweibo"}
         condition (topo-spec :conditions) 
         topo-root (str "/streaming/" topo-id)
         src-root  (str topo-root "/src/clj/oceanus/anduin/")
         main-clj  (format "%s/%s.clj" src-root topo-id)
         project-clj (format "%s/project.clj" topo-root)]
     ; add every keyword to custom segmentation dict
+    (prn topo-spec)
     (doseq [one-keyword (spec :keywords)]
       (created-hook/insert-keyword-to-dict (conf :innerapi) one-keyword))
 
@@ -62,7 +68,7 @@
     (spit project-clj (project-maker/project-def topo-id))
 
     ; header, spout, bolts(tag, filters, spitter...etc), topo-def, tail
-    (spit main-clj (ht-maker/clj-header-maker topo-id (conf :kafka)))
+    (spit main-clj (ht-maker/clj-header-maker (conf :kafka) topo-spec))
     (doseq [[one-topic serial]
             (map list 
                  (spec :topic-ids)
@@ -70,29 +76,17 @@
       (spit main-clj 
             (kafka-spout/default-kafka-spout one-topic serial) 
             :append true))
-    (doseq [[one-target serial]
-            (map list 
-                 (spec :keywords)
-                 (take (count (spec :keywords)) (iterate inc 1)))]
-      (spit main-clj 
-            (sentiment-judger-maker/generate-sentiment-judger one-target serial) 
-            :append true))
+
+    (if (not-every? empty?
+          (->> [:include-any :include-all :exclude-any]
+               (select-keys topo-spec) 
+               vals))
+      (spit main-clj (str-bolts-maker/string-filter-maker topo-spec) :append true))
+
+    (spit main-clj (sentiment-judger-maker/generate-sentiment-judger) :append true)
     (spit main-clj (tid-adder-maker/generate-tid-bolt topo-id) :append true)
     (spit main-clj (sundries-extractor-maker/generate-sundries-extractor) :append true)
     (spit main-clj (segmentation-bolt-maker/generate-seg-bolt) :append true)
-    (if (= "or" condition)
-      (spit main-clj (pass-tag-adder-maker/generate-tag-bolt) :append true))
-    (if-not (empty? (topo-spec :include-any))
-      (spit main-clj (str-bolts-maker/include-any-maker
-                       (topo-spec :include-any) condition) :append true))
-    (if-not (empty? (topo-spec :include-all))
-      (spit main-clj (str-bolts-maker/include-all-maker
-                       (topo-spec :include-all) condition) :append true))
-    (if-not (empty? (topo-spec :exclude-any))
-      (spit main-clj (str-bolts-maker/exclude-any-maker
-                       (topo-spec :exclude-any) condition) :append true))
-    (if (= "or" condition)
-      (spit main-clj (pass-filter-maker/generate-pass-bolt) :append true))
     (spit main-clj (ads-tagger-maker/generate-ads-tagger) :append true)
     (spit main-clj (similar-tagger-maker/generate-similar-tagger (spec :source-type)) :append true)
     (spit main-clj (spitter-bolt-maker/mq-spitter-bolt (conf :rabbit)) :append true)
