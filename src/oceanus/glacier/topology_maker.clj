@@ -63,13 +63,12 @@
         after-filter-id (if (= "and" condition)
                           after-str-filter-id
                           (inc after-str-filter-id))]
-    ; There are x spouts, x sentiment bolts, where x is count of keywords crawled
+    ; There are x spouts, where x is count of keywords crawled
+    ;   1 or 0 string filter bolt
+    ;   1 sentiment bolt
     ;   1 tid adder bolt, 
     ;   1 sundries extractor bolt
     ;   1 segmentation bolt, 
-    ;   1 or 0 pass-tag-adder bolt, (1 if condition is `or`)
-    ;   y string bolts, where y is 0-3, (3 kinds of string filters in total)
-    ;   1 or 0 pass-filter bolt, (1 if condition is `or`)
     ;   1 ad tagger bolt
     ;   1 similar text tagger bolt
     ;   1 spitter bolt
