@@ -108,7 +108,7 @@
       (if topo-spec
         (do
           (send! channel received)
-          (go/go-topo topo-spec true config)) ; false means not local mode
+          (go/go-topo topo-spec true config)) ; true means do not compile
         (send! channel no-such-topo)))
     ))
 
@@ -120,7 +120,7 @@
       (if topo-spec
         (do
           (send! channel received)
-          (go/go-topo topo-spec false config)) ; false means not local mode
+          (go/go-topo topo-spec false config)) 
         (send! channel no-such-topo)))
     ))
 
@@ -219,7 +219,7 @@
   (POST "/topology/test/:tpid" [] generate-test-topology)
   (DELETE "/consumer/:tpid" [] delete-consumer-handler)
   (DELETE "/topic/:topic" [] delete-topic-handler)
-  (DELETE "/logs/:logtype" [] delete-logs-handler)
+  (DELETE "/logs/:logtype" [] delete-logs-handler) ;async
   (route/not-found "404"))
 
 (run-server (api #'all-routes) {:port 8010})

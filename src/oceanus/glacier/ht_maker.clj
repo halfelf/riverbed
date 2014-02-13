@@ -28,9 +28,9 @@
       ;;;;;;;;;;;;;;;;;;;;
       "(def ^{:const true}\n"
       "  exchange-name \"outfall\")\n\n"
-      "(def ^{:const true} ids-keys\n"
+      "(def ^{:const true} ids-keys\n  "
       (str (zipmap (topo-spec :topic-ids) (topo-spec :keywords)))
-      "  )\n\n"
+      ")\n\n"
     ))
 
 

@@ -17,13 +17,13 @@
               "        text     (info-map :txt)]\n"
       (format "    (if (%s? true?\n" prediction)
               "          [\n"
-            (if-not? (empty? include-any)
+            (if-not (empty? include-any)
       (format "           (boolean (re-find #\"%s\" text))\n" 
               (join "|" (map #(. Pattern quote %) include-any))))
-            (if-not? (empty? include-all)
+            (if-not (empty? include-all)
       (format "           (boolean (re-find #\"%s\" text))\n" 
               (join (map #(str "(?=.*" (. Pattern quote %) ")") include-all))))
-            (if-not? (empty? exclude-any)
+            (if-not (empty? exclude-any)
       (format "           (not (boolean (re-find #\"%s\" text)))\n" 
               (join "|" (map #(. Pattern quote %) exclude-any))))
               "          ])\n"
