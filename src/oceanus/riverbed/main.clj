@@ -14,24 +14,10 @@
              [go :as go]
              [logs :as logs]
              [created-hook :as created-hook]])
+  (:use [oceanus.riverbed.constants])
   (:gen-class))
 
-
 (def config (edn/read-string (slurp "resources/config.edn")))
-
-(def no-such-topo 
-     {:status  404
-      :headers {"Content-Type" "text/plain"}
-      :body    "no such topo"})
-(def received
-     {:status  200
-      :headers {"Content-Type" "text/plain"}
-      :body    "received"})
-(def wrong-type
-     {:status  404
-      :headers {"Content-Type" "text/plain"}
-      :body    "no such log type"})
-      
 
 (defn- get-topic-ids
   [keywords]

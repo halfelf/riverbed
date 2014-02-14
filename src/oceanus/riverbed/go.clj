@@ -54,7 +54,6 @@
         main-clj  (format "%s/%s.clj" src-root topo-id)
         project-clj (format "%s/project.clj" topo-root)]
     ; add every keyword to custom segmentation dict
-    (prn topo-spec)
     (doseq [one-keyword (spec :keywords)]
       (created-hook/insert-keyword-to-dict (conf :innerapi) one-keyword))
 
