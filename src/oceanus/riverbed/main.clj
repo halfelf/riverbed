@@ -91,50 +91,62 @@
   (with-channel req channel
     (let [topo-id (:tpid (:route-params req))
           topo-spec (get-topo-spec topo-id)]
+      (logs/receive-req "New task (test)" topo-id)
       (if topo-spec
         (do
           (send! channel received)
           (go/go-topo topo-spec true config)) ; true means do not compile
-        (send! channel no-such-topo)))
-    ))
+        (do 
+          (send! channel no-such-topo)
+          (logs/not-exist "New task (test)" topo-id)))
+      )))
 
 (defn generate-topology 
   [req]
   (with-channel req channel
     (let [topo-id (:tpid (:route-params req))
           topo-spec (get-topo-spec topo-id)]
+      (logs/receive-req "New task" topo-id)
       (if topo-spec
         (do
           (send! channel received)
           (go/go-topo topo-spec false config)) 
-        (send! channel no-such-topo)))
-    ))
+        (do
+          (send! channel no-such-topo)
+          (logs/not-exist "New task" topo-id)))
+      )))
 
 (defn update-topology-by-id
   [req]
   (with-channel req channel
     (let [topo-id (:tpid (:route-params req))
           topo-spec (get-topo-spec topo-id)]
+      (logs/receive-req "Update task" topo-id)
       (if topo-spec
         (do
           (send! channel received)
           (go/stop-topo topo-id)
           (Thread/sleep 60000)  ; wait for killing topology
           (go/go-topo topo-spec false config))
-        (send! channel no-such-topo)))
-    ))
+        (do
+          (send! channel no-such-topo)
+          (logs/not-exist "Update task" topo-id)))
+      )))
 
 (defn stop-topology-by-id
   [req]
   (with-channel req channel
     (let [topo-id (:tpid (:route-params req))
           topo-spec (get-topo-spec topo-id)]
+      (logs/receive-req "Stop task" topo-id)
       (if topo-spec
         (do
           (send! channel received)
           (go/stop-topo topo-id))
-        (send! channel no-such-topo))
-    )))
+        (do
+          (send! channel no-such-topo)
+          (logs/not-exist "Stop task" topo-id)))
+      )))
 
 (defn deactivate-handler
   [req]
@@ -167,6 +179,7 @@
         zk-connect (format "%s:%s" 
                            (-> config :kafka :zk-host)
                            (-> config :kafka :zk-port))]
+    (logs/receive-req "Delete Consumer" topo-id)
     (go/delete-consumer-info topo-id zk-connect)
     {:status  200
      :headers {"Content-Type" "text/plain"}
@@ -208,5 +221,7 @@
   (DELETE "/logs/:logtype" [] delete-logs-handler) ;async
   (route/not-found "404"))
 
-(run-server (api #'all-routes) {:port 8010})
+(defn -main
+  [& args]
+  (defonce server (run-server (api #'all-routes) {:port 8010 :join? false})))
 

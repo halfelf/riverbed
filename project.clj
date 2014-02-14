@@ -6,6 +6,7 @@
   :source-paths ["src"]
   :aot :all
   :dependencies [[org.clojure/clojure "1.5.1"]
+                 [com.taoensso/timbre "3.0.1"]
                  [http-kit "2.1.16"]
                  [javax.servlet/servlet-api "2.5"] ; see ring github page
                  [clj-http "0.7.8"]

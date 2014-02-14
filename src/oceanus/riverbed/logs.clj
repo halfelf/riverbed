@@ -1,7 +1,22 @@
 (ns oceanus.riverbed.logs
   (:require [me.raynes.fs :as fs])
+  (:require [taoensso.timbre :as timbre])
   (:import org.apache.commons.io.FilenameUtils)
   (:gen-class))
+
+(timbre/refer-timbre)
+(timbre/set-config! [:appenders :spit :enabled?] true)
+(timbre/set-config! [:shared-appender-config :spit-filename] "./logs/riverbed.log")
+
+(defn receive-req
+  [req-type topo-id]
+  (info 
+    (format "%s request received. Topology id is %s." req-type topo-id)))
+
+(defn not-exist
+  [req-type topo-id]
+  (info 
+    (format "%s request received. Task %s doesn't exist." req-type topo-id)))
 
 (defn del-zookeeper 
   [zoo-dir]
