@@ -8,6 +8,14 @@
 (timbre/set-config! [:appenders :spit :enabled?] true)
 (timbre/set-config! [:shared-appender-config :spit-filename] "./logs/riverbed.log")
 
+(defn start []
+  (info "Riverbed Controller starts."))
+
+(defn exception
+  [thread message]
+  (error
+    (format "Exception: %s    in Thread %s." message thread)))
+
 (defn receive-req
   [req-type topo-id]
   (info 

@@ -1,15 +1,12 @@
 (ns oceanus.riverbed.main
   (:require [cheshire.core :refer :all])
-  (:require [compojure.route :as route])
   (:require [clojure.java.jdbc :as jdbc])
   (:require [clojure.string :as string])
   (:require [clojure.edn :as edn])
   (:require [me.raynes.fs :as fs])
-  (:use compojure.core
-        compojure.handler
-        org.httpkit.server)
   (:require [monger.core :as mg])
   (:require [monger.collection :as mc])
+  (:require [langohr core channel queue basic exchange])
   (:require [oceanus.riverbed
              [go :as go]
              [logs :as logs]
@@ -80,148 +77,81 @@
       ; no topo exists
       nil)))
 
+(defn message-handler
+  [ch {:keys [content-type delivery-tag typ] :as meta} ^bytes payload]
+  
+    )
 
-(defn hello-handler [req]
-  {:status  200
-   :headers {"Content-Type" "text/html"}
-   :body    "This is dataminr riverbed server."})
-
-(defn generate-test-topology 
-  [req]
-  (with-channel req channel
-    (let [topo-id (:tpid (:route-params req))
-          topo-spec (get-topo-spec topo-id)]
-      (logs/receive-req "New task (test)" topo-id)
-      (if topo-spec
-        (do
-          (send! channel received)
-          (go/go-topo topo-spec true config)) ; true means do not compile
-        (do 
-          (send! channel no-such-topo)
-          (logs/not-exist "New task (test)" topo-id)))
-      )))
-
-(defn generate-topology 
-  [req]
-  (with-channel req channel
-    (let [topo-id (:tpid (:route-params req))
-          topo-spec (get-topo-spec topo-id)]
-      (logs/receive-req "New task" topo-id)
-      (if topo-spec
-        (do
-          (send! channel received)
-          (go/go-topo topo-spec false config)) 
-        (do
-          (send! channel no-such-topo)
-          (logs/not-exist "New task" topo-id)))
-      )))
-
-(defn update-topology-by-id
-  [req]
-  (with-channel req channel
-    (let [topo-id (:tpid (:route-params req))
-          topo-spec (get-topo-spec topo-id)]
-      (logs/receive-req "Update task" topo-id)
-      (if topo-spec
-        (do
-          (send! channel received)
-          (go/stop-topo topo-id)
-          (Thread/sleep 60000)  ; wait for killing topology
-          (go/go-topo topo-spec false config))
-        (do
-          (send! channel no-such-topo)
-          (logs/not-exist "Update task" topo-id)))
-      )))
-
-(defn stop-topology-by-id
-  [req]
-  (with-channel req channel
-    (let [topo-id (:tpid (:route-params req))
-          topo-spec (get-topo-spec topo-id)]
-      (logs/receive-req "Stop task" topo-id)
-      (if topo-spec
-        (do
-          (send! channel received)
-          (go/stop-topo topo-id))
-        (do
-          (send! channel no-such-topo)
-          (logs/not-exist "Stop task" topo-id)))
-      )))
-
-(defn deactivate-handler
-  [req]
-  (with-channel req channel
-    (let [topo-id (:tpid (:route-params req))
-          topo-spec (get-topo-spec topo-id)]
-      (if topo-spec
-        (do
-          (send! channel received)
-          (go/deactivate topo-id))
-        (send! channel no-such-topo))
-      )))
-
-(defn activate-handler
-  [req]
-  (with-channel req channel
-    (let [topo-id (:tpid (:route-params req))
-          topo-spec (get-topo-spec topo-id)]
-      (if topo-spec
-        (do
-          (send! channel received)
-          (go/activate topo-id))
-        (send! channel no-such-topo))
-      )))
-
-
-(defn delete-consumer-handler
-  [req]
-  (let [topo-id (:tpid (:route-params req))
-        zk-connect (format "%s:%s" 
-                           (-> config :kafka :zk-host)
-                           (-> config :kafka :zk-port))]
-    (logs/receive-req "Delete Consumer" topo-id)
-    (go/delete-consumer-info topo-id zk-connect)
-    {:status  200
-     :headers {"Content-Type" "text/plain"}
-     :body    "ok"}))
-      
-(defn delete-topic-handler
-  [req]
-  (let [topic (:topic (:route-params req))
-        zk-connect (format "%s:%s" 
-                           (-> config :kafka :zk-host)
-                           (-> config :kafka :zk-port))]
-    (go/delete-topic topic zk-connect)
-    {:status  200
-     :headers {"Content-Type" "text/plain"}
-     :body    "ok"}))
-
-(defn delete-logs-handler
-  [req]
-  (with-channel req channel
-    (let [logtype (:logtype (:route-params req))]
-      (case logtype
-        "zookeeper" (do (send! channel received) (logs/del-zookeeper (config :zookeeper-logs)))
-        "storm"     (do (send! channel received) (logs/del-storm (config :storm-dir)))
-        (send! channel wrong-type))
-      )))
-
-(defroutes all-routes
-  ; all handlers which will execute `storm` command are async
-  (GET "/" [] hello-handler)
-  (context "/topology/:tpid" []
-           (POST   "/" [] generate-topology)     ; async
-           (PUT    "/" [] update-topology-by-id) ; async
-           (DELETE "/" [] stop-topology-by-id))  ; async
-  (GET "/topology/deactivate/:tpid" [] deactivate-handler) ;async
-  (GET "/topology/activate/:tpid" [] activate-handler) ;async
-  (POST "/topology/test/:tpid" [] generate-test-topology)
-  (DELETE "/consumer/:tpid" [] delete-consumer-handler)
-  (DELETE "/topic/:topic" [] delete-topic-handler)
-  (DELETE "/logs/:logtype" [] delete-logs-handler) ;async
-  (route/not-found "404"))
 
 (defn -main
   [& args]
-  (defonce server (run-server (api #'all-routes) {:port 8010 :join? false})))
+  (let [conn  (langohr.core/connect (config :rabbit))
+        ch    (langohr.channel/open conn)
+        qname "storm.console"]
+    (logs/start)
+    ; start another thread to consume messages
+    (.start 
+      (Thread 
+        #(langohr.consumers/subscribe ch qname message-handler :auto-ack false)))
+    (try
+      (while true
+        )
+      (catch Exception e
+        (logs/exception "main" (.getMessage e)))
+      (finally 
+        (do
+          (langohr.core/close ch)
+          (langohr.core/close conn))))
+    ))
+
+
+;
+;(defn delete-consumer-handler
+;  [req]
+;  (let [topo-id (:tpid (:route-params req))
+;        zk-connect (format "%s:%s" 
+;                           (-> config :kafka :zk-host)
+;                           (-> config :kafka :zk-port))]
+;    (logs/receive-req "Delete Consumer" topo-id)
+;    (go/delete-consumer-info topo-id zk-connect)
+;    {:status  200
+;     :headers {"Content-Type" "text/plain"}
+;     :body    "ok"}))
+;      
+;(defn delete-topic-handler
+;  [req]
+;  (let [topic (:topic (:route-params req))
+;        zk-connect (format "%s:%s" 
+;                           (-> config :kafka :zk-host)
+;                           (-> config :kafka :zk-port))]
+;    (go/delete-topic topic zk-connect)
+;    {:status  200
+;     :headers {"Content-Type" "text/plain"}
+;     :body    "ok"}))
+;
+;(defn delete-logs-handler
+;  [req]
+;  (with-channel req channel
+;    (let [logtype (:logtype (:route-params req))]
+;      (case logtype
+;        "zookeeper" (do (send! channel received) (logs/del-zookeeper (config :zookeeper-logs)))
+;        "storm"     (do (send! channel received) (logs/del-storm (config :storm-dir)))
+;        (send! channel wrong-type))
+;      )))
+;
+;(defroutes all-routes
+;  ; all handlers which will execute `storm` command are async
+;  (GET "/" [] hello-handler)
+;  (context "/topology/:tpid" []
+;           (POST   "/" [] generate-topology)     ; async
+;           (PUT    "/" [] update-topology-by-id) ; async
+;           (DELETE "/" [] stop-topology-by-id))  ; async
+;  (GET "/topology/deactivate/:tpid" [] deactivate-handler) ;async
+;  (GET "/topology/activate/:tpid" [] activate-handler) ;async
+;  (POST "/topology/test/:tpid" [] generate-test-topology)
+;  (DELETE "/consumer/:tpid" [] delete-consumer-handler)
+;  (DELETE "/topic/:topic" [] delete-topic-handler)
+;  (DELETE "/logs/:logtype" [] delete-logs-handler) ;async
+;  (route/not-found "404"))
+
 
