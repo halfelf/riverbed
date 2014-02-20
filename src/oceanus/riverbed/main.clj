@@ -62,7 +62,8 @@
                                       (config :topo-filter-table)
                                       topo-id)
             task-to-filters (jdbc/query (config :mysql-db) [query-topo-filter])
-            keywords        (string/split (topo-info :seeds) #",")
+            keywords        (string/split (topo-info :seeds) #"[,，]")
+            add-to-seg      (string/split (topo-info :seeds) #"[,，\s]")
             topic-ids       (get-topic-ids keywords)
             source-type     (topo-info :source)]
         (if task-to-filters
@@ -70,6 +71,7 @@
           (reduce merge-filters {:topo-id     topo-id
                                  :topic-ids   topic-ids
                                  :keywords    keywords
+                                 :add-to-seg  add-to-seg
                                  :source-type source-type}
                   task-to-filters)
           ; topo without filter
@@ -77,7 +79,8 @@
            :topic-ids topic-ids
            :and_keywords "" :or_keywords "" :not_keywords ""
            :source-type source-type
-           :keywords keywords}))
+           :keywords keywords
+           :add-to-seg add-to-seg}))
       ; no topo exists
       nil)))
 
