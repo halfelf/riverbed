@@ -17,7 +17,6 @@
 (def config (edn/read-string (slurp "resources/config.edn")))
 
 (def ^{:const true} two-mins 120000)  ; ms
-(def last-time (ref (System/currentTimeMillis)))
 (def console-msg (ref {}))
 
 (defn- get-topic-ids
@@ -87,7 +86,7 @@
 (defn new-topo
   [topo-id cluster-mode]
   (let [topo-spec (get-topo-spec topo-id)]
-    (logs/receive-req "NewTask" topo-id)
+    (logs/receive-req "NewTask (cluster-mode: %s)" topo-id cluster-mode)
     (go/go-topo topo-spec cluster-mode config)))
 
 (defn update-topo
@@ -128,7 +127,7 @@
 (defn- process-requests
   []
   (dosync
-    (ref-set last-time (System/currentTimeMillis))
+    (prn @console-msg)
     (doseq [[obj operation] @console-msg]
       (case operation
         :new    (future (new-topo obj true))
@@ -138,9 +137,9 @@
         :del-consumer (future (delete-consumer obj))
         :del-topic    (future (delete-topic obj)) 
         :del-old-logs (future (delete-logs obj))
-        nil)
-      (ref-set console-msg {})
-      )))
+        (logs/wrong-req obj operation)))
+    (ref-set console-msg {})
+    ))
 
 (defn- update-with-tid
   [request-map topo-id operation]
@@ -153,6 +152,7 @@
   [ch {:keys [content-type delivery-tag type] :as meta} ^bytes payload]
   (dosync  ; just in case
     (alter console-msg update-with-tid (String. payload) (keyword type))
+    (prn @console-msg)
     ))
 
 (defn -main
@@ -161,6 +161,7 @@
         ch       (langohr.channel/open conn)
         qname    "storm.console"]
     (logs/start)
+    (prn @console-msg)
     (future (langohr.consumers/subscribe ch qname save-request :auto-ack true))
     (try
       (while true

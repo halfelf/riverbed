@@ -26,6 +26,11 @@
   (info 
     (format "%s request received. Task %s doesn't exist." req-type topo-id)))
 
+(defn wrong-req
+  [obj operation]
+  (info
+    (format "Bad request: to object: %s, operation: %s" obj operation)))
+
 (defn del-zookeeper 
   [zoo-dir]
   (let [now-timestamp (System/currentTimeMillis)

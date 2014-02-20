@@ -29,7 +29,16 @@
       "(def ^{:const true}\n"
       "  exchange-name \"outfall\")\n\n"
       "(def ^{:const true} ids-keys\n  "
-      (str (zipmap (topo-spec :topic-ids) (topo-spec :keywords)))
+      (str (zipmap (topo-spec :topic-ids) 
+                   (reduce 
+                     #(conj %1 
+                            (if 
+                              (re-find #"(https?|ftp)://(-\.)?([^\s/?\.#-]+\.?)+(/[^\s]*)?" %2) 
+                              "" %2)) 
+                     [] 
+                     (topo-spec :keywords))))
+    ; actually (zipmap topic-ids keywords)
+    ; but url in keywords replaced by empty string
       ")\n\n"
     ))
 
