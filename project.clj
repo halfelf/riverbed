@@ -11,6 +11,7 @@
                  [javax.servlet/servlet-api "2.5"] ; see ring github page
                  [clj-http "0.7.8"]
                  [compojure "1.1.6"]
+                 [com.novemberain/langohr "1.7.0" :exclusions [com.google.guava/guava]]
                  [com.novemberain/monger "1.7.0-beta1"]
                  [cheshire "5.2.0"]
                  [org.clojure/java.jdbc "0.3.0-beta2"]

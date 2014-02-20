@@ -6,7 +6,7 @@
   (:require [me.raynes.fs :as fs])
   (:require [monger.core :as mg])
   (:require [monger.collection :as mc])
-  (:require [langohr core channel queue basic exchange])
+  (:require [langohr core basic consumers])
   (:require [oceanus.riverbed
              [go :as go]
              [logs :as logs]
@@ -15,6 +15,10 @@
   (:gen-class))
 
 (def config (edn/read-string (slurp "resources/config.edn")))
+
+(def ^{:const true} two-mins 120000)  ; ms
+(def last-time (ref (System/currentTimeMillis)))
+(def console-msg (ref {}))
 
 (defn- get-topic-ids
   [keywords]
@@ -77,25 +81,89 @@
       ; no topo exists
       nil)))
 
-(defn message-handler
-  [ch {:keys [content-type delivery-tag typ] :as meta} ^bytes payload]
-  
-    )
+(defn new-topo
+  [topo-id cluster-mode]
+  (let [topo-spec (get-topo-spec topo-id)]
+    (logs/receive-req "NewTask" topo-id)
+    (go/go-topo topo-spec cluster-mode config)))
 
+(defn update-topo
+  [topo-id]
+  (let [topo-spec (get-topo-spec topo-id)]
+    (logs/receive-req "Update" topo-id)
+    (go/stop-topo topo-id)
+    (go/go-topo topo-spec true config)))
+
+(defn kill-topo
+  [topo-id]
+  (logs/receive-req "Stop" topo-id)
+  (go/stop-topo topo-id))
+
+(defn delete-consumer
+  [topo-id]
+  (let [zk-connect (format "%s:%s" 
+                           (-> config :kafka :zk-host)
+                           (-> config :kafka :zk-port))]
+    (logs/receive-req "Delete Consumer" topo-id)
+    (go/delete-consumer-info topo-id zk-connect)
+    ))
+
+(defn delete-topic
+  [topic]
+  (let [zk-connect (format "%s:%s" 
+                           (-> config :kafka :zk-host)
+                           (-> config :kafka :zk-port))]
+    (go/delete-topic topic zk-connect)))
+
+(defn delete-logs
+  [logtype]
+  (case logtype
+    "zookeeper" (logs/del-zookeeper (config :zookeeper-logs))
+    "storm"     (logs/del-storm (config :storm-dir))
+    "wrong-type"))
+
+(defn- process-requests
+  []
+  (dosync
+    (ref-set last-time (System/currentTimeMillis))
+    (doseq [[obj operation] @console-msg]
+      (case operation
+        :new    (future (new-topo obj true))
+        :test   (future (new-topo obj false))
+        :update (future (update-topo obj))
+        :stop   (future (kill-topo obj))
+        :del-consumer (future (delete-consumer obj))
+        :del-topic    (future (delete-topic obj)) 
+        :del-old-logs (future (delete-logs obj))
+        nil)
+      (ref-set console-msg {})
+      )))
+
+(defn- update-with-tid
+  [request-map topo-id operation]
+  (conj {topo-id operation}
+    (if (contains? request-map topo-id)
+      (dissoc request-map topo-id)
+      request-map)))
+
+(defn- save-request
+  [ch {:keys [content-type delivery-tag type] :as meta} ^bytes payload]
+  (dosync  ; just in case
+    (alter console-msg update-with-tid (String. payload) (keyword type))
+    ))
 
 (defn -main
   [& args]
-  (let [conn  (langohr.core/connect (config :rabbit))
-        ch    (langohr.channel/open conn)
-        qname "storm.console"]
+  (let [conn     (langohr.core/connect (config :rabbit))
+        ch       (langohr.channel/open conn)
+        qname    "storm.console"]
     (logs/start)
-    ; start another thread to consume messages
-    (.start 
-      (Thread 
-        #(langohr.consumers/subscribe ch qname message-handler :auto-ack false)))
+    (future (langohr.consumers/subscribe ch qname save-request :auto-ack true))
     (try
       (while true
-        )
+        (do
+          (process-requests)
+          (Thread/sleep two-mins)))
       (catch Exception e
         (logs/exception "main" (.getMessage e)))
       (finally 
@@ -103,55 +171,4 @@
           (langohr.core/close ch)
           (langohr.core/close conn))))
     ))
-
-
-;
-;(defn delete-consumer-handler
-;  [req]
-;  (let [topo-id (:tpid (:route-params req))
-;        zk-connect (format "%s:%s" 
-;                           (-> config :kafka :zk-host)
-;                           (-> config :kafka :zk-port))]
-;    (logs/receive-req "Delete Consumer" topo-id)
-;    (go/delete-consumer-info topo-id zk-connect)
-;    {:status  200
-;     :headers {"Content-Type" "text/plain"}
-;     :body    "ok"}))
-;      
-;(defn delete-topic-handler
-;  [req]
-;  (let [topic (:topic (:route-params req))
-;        zk-connect (format "%s:%s" 
-;                           (-> config :kafka :zk-host)
-;                           (-> config :kafka :zk-port))]
-;    (go/delete-topic topic zk-connect)
-;    {:status  200
-;     :headers {"Content-Type" "text/plain"}
-;     :body    "ok"}))
-;
-;(defn delete-logs-handler
-;  [req]
-;  (with-channel req channel
-;    (let [logtype (:logtype (:route-params req))]
-;      (case logtype
-;        "zookeeper" (do (send! channel received) (logs/del-zookeeper (config :zookeeper-logs)))
-;        "storm"     (do (send! channel received) (logs/del-storm (config :storm-dir)))
-;        (send! channel wrong-type))
-;      )))
-;
-;(defroutes all-routes
-;  ; all handlers which will execute `storm` command are async
-;  (GET "/" [] hello-handler)
-;  (context "/topology/:tpid" []
-;           (POST   "/" [] generate-topology)     ; async
-;           (PUT    "/" [] update-topology-by-id) ; async
-;           (DELETE "/" [] stop-topology-by-id))  ; async
-;  (GET "/topology/deactivate/:tpid" [] deactivate-handler) ;async
-;  (GET "/topology/activate/:tpid" [] activate-handler) ;async
-;  (POST "/topology/test/:tpid" [] generate-test-topology)
-;  (DELETE "/consumer/:tpid" [] delete-consumer-handler)
-;  (DELETE "/topic/:topic" [] delete-topic-handler)
-;  (DELETE "/logs/:logtype" [] delete-logs-handler) ;async
-;  (route/not-found "404"))
-
 

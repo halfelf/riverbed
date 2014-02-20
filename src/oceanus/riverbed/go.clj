@@ -33,7 +33,7 @@
 
 (defn go-topo
   "Generate a project dir, define topo, define nodes, run"
-  [spec is-local conf]
+  [spec cluster-mode conf]
   (let [topo-id     (spec :topo-id)
         split-words (reduce #(update-in %1 [%2] check-empty-or-split)
                             spec
@@ -93,7 +93,7 @@
     (spit main-clj (ht-maker/clj-tail-maker topo-id) :append true)
 
     ; package & submit to cluster
-    (if-not is-local
+    (if cluster-mode
       (do
         (with-sh-dir topo-root
           (sh "sh" "-c" "lein compile"))
