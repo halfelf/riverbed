@@ -56,10 +56,12 @@
          "}\n"
          "    {\n"
       (if has-str-bolt
+ (str
  (format "     \"%d\" (bolt-spec {%s} string-filter-bolt)\n" str-bolt-id (merge-spouts spouts-count))
+ (format "     \"%d\" (bolt-spec {\"%d\" :shuffle} sentiment-judger)\n" sentiment-id str-bolt-id))
+ (format "     \"%d\" (bolt-spec {%s} sentiment-judger)\n" sentiment-id (merge-spouts spouts-count))
          )
 
- (format "     \"%d\" (bolt-spec {\"%d\" :shuffle} sentiment-judger)\n" sentiment-id str-bolt-id)
  (format "     \"%d\" (bolt-spec {\"%d\" :shuffle} tid-adder)\n" tid-adder-id sentiment-id)
  (format "     \"%d\" (bolt-spec {\"%d\" :shuffle} sundries-extractor)\n" sundry-id tid-adder-id)
  (format "     \"%d\" (bolt-spec {\"%d\" :shuffle} segmentation-bolt)\n" seg-id sundry-id)
