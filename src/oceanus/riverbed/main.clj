@@ -86,7 +86,7 @@
 (defn new-topo
   [topo-id cluster-mode]
   (let [topo-spec (get-topo-spec topo-id)]
-    (logs/receive-req "NewTask (cluster-mode: %s)" topo-id cluster-mode)
+    (logs/receive-req (format "NewTask (cluster-mode: %s)" cluster-mode) topo-id)
     (go/go-topo topo-spec cluster-mode config)))
 
 (defn update-topo
@@ -127,7 +127,6 @@
 (defn- process-requests
   []
   (dosync
-    (prn @console-msg)
     (doseq [[obj operation] @console-msg]
       (case operation
         :new    (future (new-topo obj true))
@@ -152,7 +151,6 @@
   [ch {:keys [content-type delivery-tag type] :as meta} ^bytes payload]
   (dosync  ; just in case
     (alter console-msg update-with-tid (String. payload) (keyword type))
-    (prn @console-msg)
     ))
 
 (defn -main
@@ -161,7 +159,6 @@
         ch       (langohr.channel/open conn)
         qname    "storm.console"]
     (logs/start)
-    (prn @console-msg)
     (future (langohr.consumers/subscribe ch qname save-request :auto-ack true))
     (try
       (while true
