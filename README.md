@@ -1,17 +1,15 @@
 riverbed
 ========
 
-Webserver for storing/updating/starting storm topology for social data processing.
-
+System to create/delete/update storm topology for [bestminr](http://bestminr.com).
 
 Control
 ---------
 
-* Use different HTTP method sending request to `host:port/topology/:task-id` to query/start/update/stop topology.
-* query -- `GET`
-* generate and run -- `POST`
-* update -- `PUT`
-* stop and delete -- `DELETE`
+* Consume controlling messages from a task queue.
+* Each payload should be a string containing a topology id.
+* Each message's metadata should include "type" field to indicate the operation.
+* The value of "type" field should be one of the following: "new", "update" or "stop".
 
 
 Prerequisite
@@ -20,5 +18,6 @@ Prerequisite
 * Mysql
 * Mongo
 * Rabbitmq
-* JVM with Clojure
+* JVM
+* leiningen
 
