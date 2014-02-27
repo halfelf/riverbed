@@ -34,11 +34,11 @@
 (defn del-zookeeper 
   [zoo-dir]
   (let [now-timestamp (System/currentTimeMillis)
-        one-week-millis (* 7 86400000)]
+        three-days-millis (* 3 86400000)]
     (if (fs/exists? zoo-dir)
       (doseq [one-log (file-seq (clojure.java.io/file zoo-dir))]
         (if (> (- now-timestamp (fs/mod-time one-log))
-               one-week-millis)
+               three-days-millis)
           (fs/delete one-log)))
       )))
 
