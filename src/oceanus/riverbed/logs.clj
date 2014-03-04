@@ -35,6 +35,7 @@
   [zoo-dir]
   (let [now-timestamp (System/currentTimeMillis)
         three-days-millis (* 3 86400000)]
+    (info "Clearing Zookeeper logs")
     (if (fs/exists? zoo-dir)
       (doseq [one-log (file-seq (clojure.java.io/file zoo-dir))]
         (if (> (- now-timestamp (fs/mod-time one-log))
@@ -42,20 +43,16 @@
           (fs/delete one-log)))
       )))
 
-
-; storm logs are just too small and important
-; maybe leave them alone for manual purge
-; so the following functions are unfinished
 (defn del-storm 
+  "
+   Storm logs will be rotated into `*.logs.1` `*.logs.2` ...etc
+   Leave all logs end with `.log`, delete others
+  "
   [storm-dir]
-  (let [now-timestamp (System/currentTimeMillis)
-        log-dir  (. FilenameUtils concat storm-dir "logs")]     
+  (let [log-dir  (. FilenameUtils concat storm-dir "logs")]     
+    (info "Clearing storm logs")
     (if (fs/exists? log-dir)
-      (doseq [one-log (file-seq (clojure.java.io/file log-dir))]
-        )
+      (doseq [one-log (fs/glob (format "%s/*.log.*" log-dir))]
+        (fs/delete one-log))
     )))
 
-
-(defn- tail-log
-  [one-log]
-  )
