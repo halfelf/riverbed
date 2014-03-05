@@ -20,11 +20,12 @@
 (def console-msg (ref {}))
 
 (defn- get-topic-ids
-  [keywords]
+  [keywords data-source]
   (let [_   (mg/connect! (config :mongo-conf))
         _   (mg/set-db!  (mg/get-db (config :mongo-db)))
         ids (vec (map 
-              #(->> {:key %} (mc/find-one-as-map "keywords") :_id str)
+              #(->> {:key % :source data-source} 
+                    (mc/find-one-as-map "keywords") :_id str)
               keywords))]
     (mg/disconnect!)
     ids))
@@ -63,7 +64,8 @@
             task-to-filters (jdbc/query (config :mysql-db) [query-topo-filter])
             keywords        (string/split (topo-info :seeds) #"[,，]")
             add-to-seg      (string/split (topo-info :seeds) #"[,，\s]")
-            topic-ids       (get-topic-ids keywords)
+            data-source     (topo-info :source)
+            topic-ids       (get-topic-ids keywords data-source)
             source-type     (topo-info :source)]
         (if task-to-filters
           ; topo has some filter(s)
