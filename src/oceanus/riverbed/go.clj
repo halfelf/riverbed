@@ -66,7 +66,7 @@
                  (spec :topic-ids)
                  (take (count (spec :keywords)) (iterate inc 1)))]
       (spit main-clj 
-            (kafka-spout/default-kafka-spout one-topic serial) 
+            (kafka-spout/default-kafka-spout one-topic serial topo-id) 
             :append true))
 
     (if (not-every? empty?
