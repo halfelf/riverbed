@@ -2,7 +2,7 @@
   (:gen-class))
 
 (defn default-kafka-spout
-  [kafka-topic serial-number]
+  [kafka-topic serial-number tid]
   (str
     (format "(defspout kafka-spout-%d [\"sina_status\"]\n" serial-number)
             "  [conf context collector]\n"
@@ -11,8 +11,9 @@
             "      (nextTuple []\n"
             "        (doseq [raw-one-log @stream]\n"
             "          (Thread/sleep 100)\n"
-            "          (let [one-log (-> (.message raw-one-log) String. (parse-string true))]\n"
-            "            (emit-spout! collector [one-log]))))\n"
+            "          (let [one-log (-> (.message raw-one-log) String. (parse-string true))\n"
+    (format "                info-map (merge one-log {:tid %s})]\n" tid)
+            "            (emit-spout! collector [info-map]))))\n"
             "      (ack [id]\n"
             "        ))))\n\n"
   ))

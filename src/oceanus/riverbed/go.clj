@@ -10,15 +10,8 @@
              [topology-maker :as topology-maker]
              [str-bolts-maker :as str-bolts-maker]
              [kafka-spout :as kafka-spout]
-             [sundries-extractor-maker :as sundries-extractor-maker]
-             [segmentation-bolt-maker :as segmentation-bolt-maker]
-             [spitter-bolt-maker :as spitter-bolt-maker]
-             [sentiment-judger-maker :as sentiment-judger-maker]
-             [tid-adder-maker :as tid-adder-maker]
-             [ads-tagger-maker :as ads-tagger-maker]
-             [similar-tagger-maker :as similar-tagger-maker]
-             [pass-tag-adder-maker :as pass-tag-adder-maker]
-             [pass-filter-maker :as pass-filter-maker]])
+             [nlp-bolt-maker :as nlp-bolt-maker]
+             [spitter-bolt-maker :as spitter-bolt-maker]])
   (:import [kafka.utils ZKStringSerializer$ ZkUtils$])
   (:import org.I0Itec.zkclient.ZkClient)
   (:gen-class))
@@ -82,12 +75,7 @@
                vals))
       (spit main-clj (str-bolts-maker/string-filter-maker topo-spec) :append true))
 
-    (spit main-clj (sentiment-judger-maker/generate-sentiment-judger) :append true)
-    (spit main-clj (tid-adder-maker/generate-tid-bolt topo-id) :append true)
-    (spit main-clj (sundries-extractor-maker/generate-sundries-extractor) :append true)
-    (spit main-clj (segmentation-bolt-maker/generate-seg-bolt) :append true)
-    (spit main-clj (ads-tagger-maker/generate-ads-tagger) :append true)
-    (spit main-clj (similar-tagger-maker/generate-similar-tagger (spec :source-type)) :append true)
+    (spit main-clj (nlp-bolt-maker/generate-nlp-bolt (spec :source-type)) :append true)
     (spit main-clj (spitter-bolt-maker/mq-spitter-bolt (conf :rabbit)) :append true)
     (spit main-clj (topology-maker/generate-topology topo-spec) :append true)
     (spit main-clj (ht-maker/clj-tail-maker topo-id) :append true)

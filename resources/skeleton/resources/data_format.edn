@@ -1,0 +1,14 @@
+{
+    :sinaweibo    { :weibo {:txt [:txt]
+                            :sim-tag "sinaweibo"}
+                  }
+    :youku        { :comment {:txt [:txt]
+                              :sim-tag "yk"}
+                  }
+    :qqweibo      { :weibo {:txt [:txt]
+                            :sim-tag "tw"}
+                  }
+    :default      { :weibo {:txt [:txt]
+                            :sim-tag "sinaweibo"}
+                  }
+}

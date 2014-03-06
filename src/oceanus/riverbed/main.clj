@@ -119,13 +119,6 @@
                            (-> config :kafka :zk-port))]
     (go/delete-topic topic zk-connect)))
 
-(defn delete-logs
-  [logtype]
-  (case logtype
-    "zookeeper" (logs/del-zookeeper (config :zookeeper-logs))
-    "storm"     (logs/del-storm (config :storm-dir))
-    "wrong-type"))
-
 (defn- process-requests
   []
   (dosync
@@ -137,7 +130,6 @@
         :stop   (future (kill-topo obj))
         :del-consumer (future (delete-consumer obj))
         :del-topic    (future (delete-topic obj)) 
-        :del-old-logs (future (delete-logs obj))
         (logs/wrong-req obj operation)))
     (ref-set console-msg {})
     ))
