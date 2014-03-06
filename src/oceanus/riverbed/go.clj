@@ -75,7 +75,7 @@
                vals))
       (spit main-clj (str-bolts-maker/string-filter-maker topo-spec) :append true))
 
-    (spit main-clj (nlp-bolt-maker/generate-nlp-bolt (spec :source-type)) :append true)
+    (spit main-clj (nlp-bolt-maker/generate-nlp-bolt) :append true)
     (spit main-clj (spitter-bolt-maker/mq-spitter-bolt (conf :rabbit)) :append true)
     (spit main-clj (topology-maker/generate-topology topo-spec) :append true)
     (spit main-clj (ht-maker/clj-tail-maker topo-id) :append true)
