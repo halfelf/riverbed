@@ -40,10 +40,10 @@
       (-> (client/post ad-uri options) :body parse-string)
       (catch Exception e false))))
 
-(defn similar-judge [text id source-type]
+(defn similar-judge [text id source-type tid]
   "Judge if the text is similar to anyone stored, return 0 or id of the data source now"
   (let [text-json (generate-string 
-                    {"text" text "_id" id "source" source-type}
+                    {"text" text "_id" id "source" source-type "taskid" tid}
                     {:escape-non-ascii true})
                   ; source-type: sinaweibo/youku
         sim-uri   (str inner-api "/similar/")
