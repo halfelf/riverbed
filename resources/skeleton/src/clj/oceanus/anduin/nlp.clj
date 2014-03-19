@@ -40,6 +40,9 @@
       (-> (client/post ad-uri options) :body parse-string)
       (catch Exception e false))))
 
+(defn select-values [m ks]
+  (remove nil? (reduce #(conj %1 (m %2)) [] ks)))
+
 (defn similar-judge [text id source-type tid]
   "Judge if the text is similar to anyone stored, return 0 or id of the data source now"
   (let [text-json (generate-string 
@@ -49,6 +52,9 @@
         sim-uri   (str inner-api "/similar/")
         options   (merge {:body text-json} common-headers)]
     (try
-      (-> (client/post sim-uri options) :body parse-string)
-      (catch Exception e 0))))
+      (-> (client/post sim-uri options) 
+          :body 
+          parse-string 
+          (select-values ["unique" "sim"]))
+      (catch Exception e [0 0]))))
 
