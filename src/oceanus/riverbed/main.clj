@@ -88,19 +88,19 @@
 (defn new-topo
   [topo-id cluster-mode]
   (let [topo-spec (get-topo-spec topo-id)]
-    (logs/receive-req (format "NewTask (cluster-mode: %s)" cluster-mode) topo-id)
+    (logs/execute-req (format "NewTask (cluster-mode: %s)" cluster-mode) topo-id)
     (go/go-topo topo-spec cluster-mode config)))
 
 (defn update-topo
   [topo-id]
   (let [topo-spec (get-topo-spec topo-id)]
-    (logs/receive-req "Update" topo-id)
+    (logs/execute-req "Update" topo-id)
     (go/stop-topo topo-id)
     (go/go-topo topo-spec true config)))
 
 (defn kill-topo
   [topo-id]
-  (logs/receive-req "Stop" topo-id)
+  (logs/execute-req "Stop" topo-id)
   (go/stop-topo topo-id))
 
 (defn delete-consumer
@@ -108,7 +108,7 @@
   (let [zk-connect (format "%s:%s" 
                            (-> config :kafka :zk-host)
                            (-> config :kafka :zk-port))]
-    (logs/receive-req "Delete Consumer" topo-id)
+    (logs/execute-req "Delete Consumer" topo-id)
     (go/delete-consumer-info topo-id zk-connect)
     ))
 
@@ -121,18 +121,19 @@
 
 (defn- process-requests
   []
+  (doseq [[obj operation] @console-msg]
+    (case operation
+      :new    (.start (Thread. (new-topo obj true)))
+      :test   (.start (Thread. (new-topo obj false)))
+      :update (.start (Thread. (update-topo obj)))
+      :stop   (.start (Thread. (kill-topo obj)))
+      :del-consumer (.start (Thread. (delete-consumer obj)))
+      :del-topic    (.start (Thread. (delete-topic obj)))
+      :exit   (throw (Exception. "Exit Command"))
+      (logs/wrong-req obj operation)))
   (dosync
-    (doseq [[obj operation] @console-msg]
-      (case operation
-        :new    (future (new-topo obj true))
-        :test   (future (new-topo obj false))
-        :update (future (update-topo obj))
-        :stop   (future (kill-topo obj))
-        :del-consumer (future (delete-consumer obj))
-        :del-topic    (future (delete-topic obj)) 
-        (logs/wrong-req obj operation)))
-    (ref-set console-msg {})
-    ))
+    (ref-set console-msg {}))
+  )
 
 (defn- update-with-tid
   [request-map topo-id operation]
@@ -143,8 +144,9 @@
 
 (defn- save-request
   [ch {:keys [content-type delivery-tag type] :as meta} ^bytes payload]
-  (dosync  ; just in case
+  (dosync
     (alter console-msg update-with-tid (String. payload) (keyword type))
+    (logs/receive-req (str type) (String. payload))
     ))
 
 (defn -main
