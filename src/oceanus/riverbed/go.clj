@@ -26,26 +26,28 @@
 
 (defn go-topo
   "Generate a project dir, define topo, define nodes, run"
-  [spec cluster-mode conf]
+  [spec conf & {:keys [cluster-mode continue]
+                :or   {cluster-mode true continue false}}]
   (let [topo-id     (spec :topo-id)
         split-words (reduce #(update-in %1 [%2] check-empty-or-split)
                             spec
                             [:or_keywords :and_keywords :not_keywords])
-        topo-spec (-> split-words
-                    (update-in [:conditions] #(or % "and"))
-                    (rename-keys {:or_keywords  :include-any
-                                  :and_keywords :include-all
-                                  :not_keywords :exclude-any}))
+        topo-spec   (-> split-words
+                      (update-in [:conditions] #(or % "and"))
+                      (rename-keys {:or_keywords  :include-any
+                                    :and_keywords :include-all
+                                    :not_keywords :exclude-any}))
         ; topo-spec example:
         ; {:include-any [], :include-all [], :exclude-any [], 
         ;  :conditions "and", :topo-id "50", 
         ;  :topic-ids ["52e364139ab99d3e376b47fc"], 
         ;  :keywords ["非诚勿扰"], :source-type "sinaweibo"}
-        condition (topo-spec :conditions) 
-        topo-root (str "/streaming/" topo-id)
-        src-root  (str topo-root "/src/clj/oceanus/anduin/")
-        main-clj  (format "%s/%s.clj" src-root topo-id)
-        project-clj (format "%s/project.clj" topo-root)]
+        condition    (topo-spec :conditions) 
+        offset-start (if continue "largest" "smallest")
+        topo-root    (str "/streaming/" topo-id)
+        src-root     (str topo-root "/src/clj/oceanus/anduin/")
+        main-clj     (format "%s/%s.clj" src-root topo-id)
+        project-clj  (format "%s/project.clj" topo-root)]
     ; add every keyword to custom segmentation dict
     (doseq [one-keyword (spec :add-to-seg)]
       (created-hook/insert-keyword-to-dict (conf :innerapi) one-keyword))
@@ -60,7 +62,8 @@
     (spit project-clj (project-maker/project-def topo-id))
 
     ; header, spout, bolts(tag, filters, spitter...etc), topo-def, tail
-    (spit main-clj (ht-maker/clj-header-maker (conf :kafka) topo-spec))
+    (spit main-clj 
+          (ht-maker/clj-header-maker (conf :kafka) topo-spec offset-start))
     (doseq [[one-topic serial]
             (map list 
                  (spec :topic-ids)
@@ -92,12 +95,32 @@
     ))
 
 (defn stop-topo
-  [topo-id]
+  [topo-id & {:keys [remove-dir]
+              :or   {remove-dir false}}]
+  (sh "sh" "-c"
+    (format "storm kill task%s" topo-id)))
+
+(defn delete-consumer-info
+  [topo-id config]
+  (let [zk-connect (format "%s:%s" 
+                           (-> config :kafka :zk-host)
+                           (-> config :kafka :zk-port))
+        zkclient (ZkClient. zk-connect 30000 30000 ZKStringSerializer$/MODULE$)
+        zkutils  (ZkUtils$/MODULE$)]
+    (try
+      (.deletePathRecursive zkutils zkclient (format "/consumers/%s" topo-id)) 
+      (finally (if-not (= nil zkclient) (.close zkclient)))
+      )))
+
+(defn purge-topo
+  [topo-id config]
   (let [topo-root (str "/streaming/" topo-id)]
     (sh "sh" "-c"
       (format "storm kill task%s" topo-id))
-    (fs/delete-dir topo-root))
-  )
+    (if (fs/exists? topo-root)
+      (fs/delete-dir (str "/streaming/" topo-id)))
+    (delete-consumer-info topo-id config)
+    ))
     
 (defn deactivate
   [topo-id]
@@ -109,7 +132,6 @@
   (sh "sh" "-c"
       (format "storm activate task%s" topo-id)))
 
-
 (defn delete-topic
   "both parameters are string. zk-connect is like localhost:2181"
   [topic zk-connect] 
@@ -120,15 +142,6 @@
         true
         false)
       (catch Exception e (str "caught exception: " (.getMessage e)))
-      (finally (if-not (= nil zkclient) (.close zkclient)))
-      )))
-
-(defn delete-consumer-info
-  [topo-id zk-connect]
-  (let [zkclient (ZkClient. zk-connect 30000 30000 ZKStringSerializer$/MODULE$)
-        zkutils  (ZkUtils$/MODULE$)]
-    (try
-      (.deletePathRecursive zkutils zkclient (format "/consumers/%s" topo-id)) 
       (finally (if-not (= nil zkclient) (.close zkclient)))
       )))
 

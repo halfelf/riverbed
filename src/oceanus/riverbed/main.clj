@@ -89,34 +89,31 @@
   [topo-id cluster-mode]
   (let [topo-spec (get-topo-spec topo-id)]
     (logs/execute-req (format "NewTask (cluster-mode: %s)" cluster-mode) topo-id)
-    (go/go-topo topo-spec cluster-mode config)))
+    (go/go-topo topo-spec config :cluster-mode cluster-mode)))
 
 (defn update-topo
   [topo-id]
   (let [topo-spec (get-topo-spec topo-id)]
     (logs/execute-req "Update" topo-id)
-    (go/stop-topo topo-id)
-    (go/go-topo topo-spec true config)))
+    (go/stop-topo topo-id :remove-dir true)
+    (go/go-topo topo-spec config :continue true)))
 
-(defn kill-topo
+(defn stop-topo
   [topo-id]
   (logs/execute-req "Stop" topo-id)
   (go/stop-topo topo-id))
 
-(defn delete-consumer
-  [topo-id]
-  (let [zk-connect (format "%s:%s" 
-                           (-> config :kafka :zk-host)
-                           (-> config :kafka :zk-port))]
-    (logs/execute-req "Delete Consumer" topo-id)
-    (go/delete-consumer-info topo-id zk-connect)
-    ))
+(defn purge-topo
+  [topo-id config]
+  (logs/execute-req "Purge" topo-id)
+  (go/purge-topo topo-id config))
 
 (defn delete-topic
   [topic]
   (let [zk-connect (format "%s:%s" 
                            (-> config :kafka :zk-host)
                            (-> config :kafka :zk-port))]
+    (logs/execute-req "Delete Topic" topic)
     (go/delete-topic topic zk-connect)))
 
 (defn- process-requests
@@ -126,8 +123,8 @@
       :new    (.start (Thread. (new-topo obj true)))
       :test   (.start (Thread. (new-topo obj false)))
       :update (.start (Thread. (update-topo obj)))
-      :stop   (.start (Thread. (kill-topo obj)))
-      :del-consumer (.start (Thread. (delete-consumer obj)))
+      :stop   (.start (Thread. (stop-topo obj)))
+      :purge  (.start (Thread. (purge-topo obj config)))
       :del-topic    (.start (Thread. (delete-topic obj)))
       :exit   (throw (Exception. "Exit Command"))
       (logs/wrong-req obj operation)))

@@ -3,7 +3,7 @@
 
 (defn clj-header-maker
   "Generate clj ns/require/import, other consts, etc."
-  [kafka-conf topo-spec]
+  [kafka-conf topo-spec offset-start]
   (str 
     (format
       "(ns oceanus.anduin.%s\n" (topo-spec :topo-id))
@@ -21,9 +21,11 @@
       "  props {\"zookeeper.connect\"           \"%s:%s\"\n" 
       (kafka-conf :zk-host) (kafka-conf :zk-port))
     (format
-      "         \"group.id\"                    \"%s\",\n" (topo-spec :topo-id))
-      "         \"socket.receive.buffer.bytes\" 65536,\n"
-      "         \"auto.commit.interval.ms\"     1000,\n"
+      "         \"group.id\"                    \"%s\"\n" (topo-spec :topo-id))
+    (format
+      "         \"auto.offset.reset\"           \"%s\"\n" offset-start)
+      "         \"socket.receive.buffer.bytes\" 65536\n"
+      "         \"auto.commit.interval.ms\"     1000\n"
       "         \"queued.max.messages.chunks\"  1000})\n\n"
       ;;;;;;;;;;;;;;;;;;;;
       "(def ^{:const true}\n"
