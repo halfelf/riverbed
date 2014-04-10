@@ -95,8 +95,7 @@
     ))
 
 (defn stop-topo
-  [topo-id & {:keys [remove-dir]
-              :or   {remove-dir false}}]
+  [topo-id]
   (sh "sh" "-c"
     (format "storm kill task%s" topo-id)))
 

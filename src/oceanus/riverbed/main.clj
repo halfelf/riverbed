@@ -89,14 +89,19 @@
   [topo-id cluster-mode]
   (let [topo-spec (get-topo-spec topo-id)]
     (logs/execute-req (format "NewTask (cluster-mode: %s)" cluster-mode) topo-id)
-    (go/go-topo topo-spec config :cluster-mode cluster-mode)))
+    (go/go-topo topo-spec config :cluster-mode cluster-mode
+                                 :continue     false)))
 
 (defn update-topo
   [topo-id]
   (let [topo-spec (get-topo-spec topo-id)]
+    (println "in update-topo")
+    (go/stop-topo topo-id)
+    (println "old stopped")
+    (go/go-topo topo-spec config :cluster-mode true
+                                 :continue     true)
     (logs/execute-req "Update" topo-id)
-    (go/stop-topo topo-id :remove-dir true)
-    (go/go-topo topo-spec config :continue true)))
+    ))
 
 (defn stop-topo
   [topo-id]
