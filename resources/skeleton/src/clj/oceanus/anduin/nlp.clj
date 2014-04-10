@@ -24,11 +24,11 @@
   (let [text-json    (generate-string 
                        {"text" text "target" key-word} 
                        {:escape-non-ascii true})
-        senti-uri    (str inner-api "/sentiment/weibo/")
+        senti-uri    (str inner-api "/sentiment2/")
         options      (merge {:body text-json} common-headers)]
     (try
-      (-> (client/post senti-uri options) :body (parse-string true) :Result first)
-       ; POST return like this:  {:body "{\"Result\" [-1, -0.xxxx]}"}
+      (-> (client/post senti-uri options) :body read-string)
+       ; POST return like this:  {:body "-1"}}
       (catch Exception e nil))))
 
 (defn ads-recognize [text]
