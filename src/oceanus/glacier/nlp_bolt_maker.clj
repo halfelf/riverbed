@@ -17,6 +17,7 @@
         "        lite-one   (-> raw_txt\n"
         "                     (string/replace\n"
         "                       #\"(\\[\\p{L}+\\]|(https?|ftp)://(-\\.)?([^\\s/?\\.#-]+\\.?)+(/[^\\s]*)?|@.+?(?=\\s)|#|//@.+?[:\\s])\" \"\"))\n"
+                 ; no face expression, no links, no @someone, no sharp sign #, no forwarding //@someone...
         "        words      (zh-segmentation lite-one)\n"
         "        no-shits   (vec (filter #(not (re-matches #\"[？：；“”！。，\\\"'?:;!.,_\\s\\d]+\" %)) words))\n"
         ; no digit until we can segment text like "1945年" as a whole word
