@@ -19,7 +19,6 @@
             "                 [com.101tec/zkclient \"0.4\" :exclusions [org.apache.zookeeper/zookeeper]]\n"
             "                 [com.yammer.metrics/metrics-core \"2.2.0\"]]\n"
             "  :profiles {:dev\n"
-              {:dependencies [[org.apache.storm/storm-core "0.9.1-incubating"]
             "              {:dependencies [[org.apache.storm/storm-core \"0.9.1-incubating\"]\n"
             "                              [org.clojure/clojure \"1.4.0\"]\n"
             "                              [org.easytesting/fest-assert-core \"2.0M8\"]\n"
