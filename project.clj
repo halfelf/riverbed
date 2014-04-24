@@ -17,7 +17,10 @@
                  [org.clojure/java.jdbc "0.3.0-beta2"]
                  [mysql/mysql-connector-java "5.1.25"]
                  [org.apache.kafka/kafka_2.10 "0.8.0"]
-                 [com.101tec/zkclient "0.4" :exclusions [org.apache.zookeeper/zookeeper]]
+                 [com.101tec/zkclient "0.4"]
+                 [org.apache.curator/curator-framework "2.4.1"]
+                 [org.apache.curator/curator-recipes "2.4.1"]
+                 [org.apache.zookeeper/zookeeper "3.4.5"]
                  [me.raynes/fs "1.4.4"]]
   :exclusions [javax.jms/jms
                com.sun.jdmk/jmxtools
