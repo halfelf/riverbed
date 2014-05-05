@@ -9,11 +9,6 @@
 (defn start []
   (info "Riverbed Controller starts."))
 
-(defn exception
-  [thread message]
-  (error
-    (format "Exception: %s    in Thread %s." message thread)))
-
 (defn receive-req
   [req-type topo-id]
   (info 
@@ -33,4 +28,8 @@
   [obj operation]
   (info
     (format "Bad request: to object: %s, operation: %s" obj operation)))
+
+(defn exception
+  [excp]
+  (warn (.getMessage excp)))
 

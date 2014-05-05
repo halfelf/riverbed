@@ -3,23 +3,29 @@
   (:require [clojure.java.jdbc :as jdbc])
   (:require [clojure.string :as string])
   (:require [clojure.edn :as edn])
+  (:require [clojure.set :refer [rename-keys]])
   (:require [me.raynes.fs :as fs])
   (:require [monger.core :as mg])
   (:require [monger.collection :as mc])
   (:require [langohr core basic consumers])
   (:require [oceanus.riverbed
-             [go :as go]
              [logs :as logs]
              [created-hook :as created-hook]])
   (:use [oceanus.riverbed.constants])
+  (:import [org.apache.curator RetryPolicy 
+                               framework.CuratorFramework 
+                               framework.CuratorFrameworkFactory
+                               retry.ExponentialBackoffRetry])
+  (:import [org.apache.zookeeper KeeperException$NodeExistsException
+                                 KeeperException$NoNodeException])
   (:gen-class))
 
 (def config (edn/read-string (slurp "resources/config.edn")))
 
-(def ^{:const true} two-mins 120000)  ; ms
+(def ^{:const true} two-mins 12000)  ; ms
 (def console-msg (ref {}))
 
-(defn- get-topic-ids
+(defn get-topic-ids
   [keywords data-source]
   (let [_   (mg/connect! (config :mongo-conf))
         _   (mg/set-db!  (mg/get-db (config :mongo-db)))
@@ -30,14 +36,14 @@
     (mg/disconnect!)
     ids))
 
-(defn- join-may-empty
+(defn join-may-empty
   [str1 str2]
   (cond
     (string/blank? str1) str2
     (string/blank? str2) str1
     :else (string/join "," [str1 str2])))
 
-(defn- merge-filters
+(defn merge-filters
   [current-spec task-filter]
   (let [filter-id (task-filter :datafilters_id)
         query-filter (format "select * from %s where id=\"%d\""
@@ -47,90 +53,116 @@
                         first
                         (select-keys 
                           [:and_keywords :or_keywords :not_keywords]))]
-    (merge-with join-may-empty current-spec this-filter)
-    ))
+    (merge-with join-may-empty current-spec this-filter)))
 
-(defn- get-topo-spec
-  [topo-id]
+(defn get-task-spec
+  [task-id]
   (let [query-task (format "select * from %s where id=\"%s\""
-                            (config :topo-table)
-                            topo-id)
-        topo-info (first (jdbc/query (config :mysql-db) [query-task]))]
-    (if (and topo-info (not= 2 (topo-info :status)))
-      ; topo exists
-      (let [query-topo-filter (format "select * from %s where datatasks_id=\"%s\""
-                                      (config :topo-filter-table)
-                                      topo-id)
-            task-to-filters (jdbc/query (config :mysql-db) [query-topo-filter])
-            keywords        (string/split (topo-info :seeds) #"[,，]")
-            add-to-seg      (string/split (topo-info :seeds) #"[,，\s]")
-            data-source     (topo-info :source)
+                            (config :task-table)
+                            task-id)
+        task-info (first (jdbc/query (config :mysql-db) [query-task]))]
+    (if (and task-info (not= 2 (task-info :status)))
+      ; task exists
+      (let [query-task-filter (format "select * from %s where datatasks_id=\"%s\""
+                                      (config :task-filter-table)
+                                      task-id)
+            task-to-filters (jdbc/query (config :mysql-db) [query-task-filter])
+            keywords        (string/split (task-info :seeds) #"[,，]")
+            add-to-seg      (string/split (task-info :seeds) #"[,，\s]")
+            data-source     (task-info :source)
             topic-ids       (get-topic-ids keywords data-source)
-            source-type     (topo-info :source)]
+            source-type     (task-info :source)]
         (if task-to-filters
-          ; topo has some filter(s)
-          (reduce merge-filters {:topo-id     topo-id
+          ; task has some filter(s)
+          (reduce merge-filters {:task-id     task-id
                                  :topic-ids   topic-ids
                                  :keywords    keywords
                                  :add-to-seg  add-to-seg
                                  :source-type source-type}
                   task-to-filters)
-          ; topo without filter
-          {:topo-id   topo-id 
+          ; task without filter
+          {:task-id   task-id 
            :topic-ids topic-ids
            :and_keywords "" :or_keywords "" :not_keywords ""
            :source-type source-type
            :keywords keywords
            :add-to-seg add-to-seg}))
-      ; no topo exists
+      ; no task exists
       nil)))
 
-(defn new-topo
-  [topo-id cluster-mode]
-  (let [topo-spec (get-topo-spec topo-id)]
-    (logs/execute-req (format "NewTask (cluster-mode: %s)" cluster-mode) topo-id)
-    (go/go-topo topo-spec config :cluster-mode cluster-mode
-                                 :continue     false)))
+(defn- check-empty-or-split
+  "if empty str => [], else => split it"
+  [maybe-words]
+  (if (empty? maybe-words)
+    []
+    (string/split maybe-words #",")))
 
-(defn update-topo
-  [topo-id]
-  (let [topo-spec (get-topo-spec topo-id)]
-    (println "in update-topo")
-    (go/stop-topo topo-id)
-    (println "old stopped")
-    (go/go-topo topo-spec config :cluster-mode true
-                                 :continue     true)
-    (logs/execute-req "Update" topo-id)
-    ))
+(defn refine-spec
+  "Split words in :and_keywords, or_keywords, :not_keywords
+   and rename these keys"
+  [task-spec]
+  (let [split-words   (reduce #(update-in %1 [%2] check-empty-or-split)
+                            task-spec
+                            [:or_keywords :and_keywords :not_keywords])
+        refined-spec  (-> split-words
+                        (update-in [:conditions] #(or % "and"))  ; default to "and"
+                        (rename-keys {:or_keywords  :include-any
+                                      :and_keywords :include-all
+                                      :not_keywords :exclude-any
+                                      :conditions   :condition}))]
+    refined-spec))
 
-(defn stop-topo
-  [topo-id]
-  (logs/execute-req "Stop" topo-id)
-  (go/stop-topo topo-id))
+(defn zk-path
+  "Accept a task id, return `/topology/taskid`"
+  [task-id & {:keys [root-path]
+              :or   {root-path "/topology"}}]
+  (format "%s/%s" root-path task-id))
 
-(defn purge-topo
-  [topo-id config]
-  (logs/execute-req "Purge" topo-id)
-  (go/purge-topo topo-id config))
+(defn new-task
+  "create zookeeper path, set value to spec (json-like)"
+  [task-id curator]
+  (let [task-spec    (get-task-spec task-id)
+        refined-spec (refine-spec task-spec)]
+    ;(doseq [one-keyword (refined-spec :add-to-seg)]
+    ;  (created-hook/insert-keyword-to-dict (conf :innerapi) one-keyword))
+    (try
+      (.. curator create inBackground
+                  (forPath 
+                    (zk-path task-id)
+                    (.getBytes (generate-string refined-spec))))
+      (catch KeeperException$NodeExistsException e (logs/exception e)))
+    (logs/execute-req "NewTask" task-id)))
 
-(defn delete-topic
-  [topic]
-  (let [zk-connect (format "%s:%s" 
-                           (-> config :kafka :zk-host)
-                           (-> config :kafka :zk-port))]
-    (logs/execute-req "Delete Topic" topic)
-    (go/delete-topic topic zk-connect)))
+(defn update-task
+  [task-id curator]
+  (let [task-spec    (get-task-spec task-id)
+        refined-spec (refine-spec task-spec)]
+    (try
+      (.. curator setData inBackground 
+                  (forPath
+                    (zk-path task-id)
+                    (.getBytes (generate-string refined-spec))))
+      (catch KeeperException$NoNodeException e (logs/exception e)))
+    (logs/execute-req "Update" task-id)))
+
+(defn stop-task
+  [task-id curator]
+  (try
+    (.. curator delete inBackground
+                (forPath
+                  (zk-path task-id)))
+    (catch KeeperException$NoNodeException e (logs/exception e)))
+  (logs/execute-req "Stop" task-id))
 
 (defn- process-requests
-  []
+  [curator]
   (doseq [[obj operation] @console-msg]
     (case operation
-      :new    (.start (Thread. (new-topo obj true)))
-      :test   (.start (Thread. (new-topo obj false)))
-      :update (.start (Thread. (update-topo obj)))
-      :stop   (.start (Thread. (stop-topo obj)))
-      :purge  (.start (Thread. (purge-topo obj config)))
-      :del-topic    (.start (Thread. (delete-topic obj)))
+      ; I guess synchronized operation is OK now,
+      ; since it only write some data into zookeeper.
+      :new    (new-task    obj curator)   
+      :stop   (stop-task   obj curator)
+      :update (update-task obj curator)
       :exit   (throw (Exception. "Exit Command"))
       (logs/wrong-req obj operation)))
   (dosync
@@ -138,10 +170,10 @@
   )
 
 (defn- update-with-tid
-  [request-map topo-id operation]
-  (conj {topo-id operation}
-    (if (contains? request-map topo-id)
-      (dissoc request-map topo-id)
+  [request-map task-id operation]
+  (conj {task-id operation}
+    (if (contains? request-map task-id)
+      (dissoc request-map task-id)
       request-map)))
 
 (defn- save-request
@@ -155,18 +187,23 @@
   [& args]
   (let [conn     (langohr.core/connect (config :rabbit))
         ch       (langohr.channel/open conn)
-        qname    "storm.console"]
+        qname    "storm.console.test"
+        curator  (CuratorFrameworkFactory/newClient 
+                   (-> config :storm :zk-host)
+                   (ExponentialBackoffRetry. 1000 3))]
     (logs/start)
+    (.start curator)
     (future (langohr.consumers/subscribe ch qname save-request :auto-ack true))
     (try
       (while true
         (do
-          (process-requests)
+          (process-requests curator)
           (Thread/sleep two-mins)))
-      (catch Exception e
-        (logs/exception "main" (.getMessage e)))
+      ;(catch Exception e
+      ;  (logs/exception e))
       (finally 
         (do
+          (.close curator)
           (langohr.core/close ch)
           (langohr.core/close conn))))
     ))
