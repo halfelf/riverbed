@@ -21,7 +21,7 @@
 
 (def config (edn/read-string (slurp "resources/config.edn")))
 
-(def ^{:const true} two-mins 12000)  ; ms
+(def ^{:const true} write-interval 30000)  ; ms
 (def console-msg (ref {}))
 
 (defn get-topic-ids
@@ -120,8 +120,8 @@
   [task-id curator]
   (let [task-spec    (get-task-spec task-id)
         refined-spec (refine-spec task-spec)]
-    ;(doseq [one-keyword (refined-spec :add-to-seg)]
-    ;  (created-hook/insert-keyword-to-dict (conf :innerapi) one-keyword))
+    (doseq [one-keyword (refined-spec :add-to-seg)]
+      (created-hook/insert-keyword-to-dict (conf :innerapi) one-keyword))
     (try
       (.. curator create inBackground
                   (forPath 
@@ -195,7 +195,7 @@
       (while true
         (do
           (process-requests curator)
-          (Thread/sleep two-mins)))
+          (Thread/sleep write-interval)))
       ;(catch Exception e
       ;  (logs/exception e))
       (finally 
