@@ -121,7 +121,7 @@
   (let [task-spec    (get-task-spec task-id)
         refined-spec (refine-spec task-spec)]
     (doseq [one-keyword (refined-spec :add-to-seg)]
-      (created-hook/insert-keyword-to-dict (conf :innerapi) one-keyword))
+      (created-hook/insert-keyword-to-dict (config :innerapi) one-keyword))
     (try
       (.. curator create inBackground
                   (forPath 
