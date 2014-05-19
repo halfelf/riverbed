@@ -11,7 +11,6 @@
   (:require [oceanus.riverbed
              [logs :as logs]
              [created-hook :as created-hook]])
-  (:use [oceanus.riverbed.constants])
   (:import [org.apache.curator RetryPolicy 
                                framework.CuratorFramework 
                                framework.CuratorFrameworkFactory
@@ -75,17 +74,15 @@
         (if task-to-filters
           ; task has some filter(s)
           (reduce merge-filters {:task-id     task-id
-                                 :topic-ids   topic-ids
-                                 :keywords    keywords
+                                 :topics      (zipmap topic-ids keywords)
                                  :add-to-seg  add-to-seg
                                  :source-type source-type}
                   task-to-filters)
           ; task without filter
           {:task-id   task-id 
-           :topic-ids topic-ids
+           :topics    (zipmap topic-ids keywords)
            :and_keywords "" :or_keywords "" :not_keywords ""
            :source-type source-type
-           :keywords keywords
            :add-to-seg add-to-seg}))
       ; no task exists
       nil)))
@@ -99,7 +96,7 @@
 
 (defn refine-spec
   "Split words in :and_keywords, or_keywords, :not_keywords
-   and rename these keys"
+   and rename these keys, btw rename :conditions"
   [task-spec]
   (let [split-words   (reduce #(update-in %1 [%2] check-empty-or-split)
                             task-spec
@@ -113,10 +110,10 @@
     refined-spec))
 
 (defn zk-path
-  "Accept a task id, return `/topology/taskid`"
-  [task-id & {:keys [root-path]
-              :or   {root-path "/topology"}}]
-  (format "%s/%s" root-path task-id))
+  "Accept a task id, return `/tasks/taskid`"
+  [subpath & {:keys [root-path]
+              :or   {root-path "/tasks"}}]
+  (format "%s/%s" root-path subpath))
 
 (defn new-task
   "create zookeeper path, set value to spec (json-like)"

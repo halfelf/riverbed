@@ -8,7 +8,6 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [com.taoensso/timbre "3.0.1"]
                  [clj-http "0.9.1"]
-                 [compojure "1.1.6"]
                  [com.novemberain/langohr "2.8.1" :exclusions [com.google.guava/guava]]
                  [com.novemberain/monger "1.7.0"]
                  [cheshire "5.3.1"]
