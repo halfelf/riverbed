@@ -184,7 +184,7 @@
   [& args]
   (let [conn     (langohr.core/connect (config :rabbit))
         ch       (langohr.channel/open conn)
-        qname    "storm.console.test"
+        qname    "storm.console"
         curator  (CuratorFrameworkFactory/newClient 
                    (-> config :storm :zk-host)
                    (ExponentialBackoffRetry. 1000 3))]
