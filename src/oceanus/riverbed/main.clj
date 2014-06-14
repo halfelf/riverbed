@@ -11,8 +11,9 @@
   (:require [oceanus.riverbed
              [logs :as logs]
              [created-hook :as created-hook]])
-  (:import [org.apache.curator RetryPolicy 
-                               framework.CuratorFramework 
+  (:import java.util.regex.Pattern)
+  (:import [org.apache.curator RetryPolicy
+                               framework.CuratorFramework
                                framework.CuratorFrameworkFactory
                                retry.ExponentialBackoffRetry])
   (:import [org.apache.zookeeper KeeperException$NodeExistsException
@@ -28,8 +29,8 @@
   [keywords data-source]
   (let [_   (mg/connect! (config :mongo-conf))
         _   (mg/set-db!  (mg/get-db (config :mongo-db)))
-        ids (vec (map 
-              #(->> {:key % :source data-source} 
+        ids (vec (map
+              #(->> {:key % :source data-source}
                     (mc/find-one-as-map "keywords") :_id str)
               keywords))]
     (mg/disconnect!)
@@ -50,7 +51,7 @@
                              filter-id)
         this-filter (-> (jdbc/query (config :mysql-db) [query-filter])
                         first
-                        (select-keys 
+                        (select-keys
                           [:and_keywords :or_keywords :not_keywords]))]
     (merge-with join-may-empty current-spec this-filter)))
 
@@ -79,7 +80,7 @@
                                  :source-type source-type}
                   task-to-filters)
           ; task without filter
-          {:task-id   task-id 
+          {:task-id   task-id
            :topics    (zipmap topic-ids keywords)
            :and_keywords "" :or_keywords "" :not_keywords ""
            :source-type source-type
@@ -94,6 +95,17 @@
     []
     (string/split maybe-words #",")))
 
+(defn make-regex
+  "generating regex"
+  [words-list filter-type]
+  (case filter-type
+    :include-any (string/join "|" (map #(. Pattern quote %) words-list))
+    :exclude-any (string/join "|" (map #(. Pattern quote %) words-list))
+    :include-all (string/join (map #(str "(?=.*" (. Pattern quote %) ")") words-list))
+      ; "\\Qa\\E|\\Qb\\E|\\Qc\\E"  or
+      ; "(?=.*\\Qa\\E)(?=.*\\Qb\\E)(?=.*\\Qc\\E)"
+    ))
+
 (defn refine-spec
   "Split words in :and_keywords, or_keywords, :not_keywords
    and rename these keys, btw rename :conditions"
@@ -106,7 +118,10 @@
                         (rename-keys {:or_keywords  :include-any
                                       :and_keywords :include-all
                                       :not_keywords :exclude-any
-                                      :conditions   :condition}))]
+                                      :conditions   :condition})
+                        (update-in [:include-any] #(make-regex % :include-any))
+                        (update-in [:include-all] #(make-regex % :include-all))
+                        (update-in [:exclude-any] #(make-regex % :exclude-any)))]
     refined-spec))
 
 (defn zk-path
@@ -124,7 +139,7 @@
       (created-hook/insert-keyword-to-dict (config :innerapi) one-keyword))
     (try
       (.. curator create inBackground
-                  (forPath 
+                  (forPath
                     (zk-path task-id)
                     (.getBytes (generate-string refined-spec))))
       (catch KeeperException$NodeExistsException e (logs/exception e)))
@@ -135,7 +150,7 @@
   (let [task-spec    (get-task-spec task-id)
         refined-spec (refine-spec task-spec)]
     (try
-      (.. curator setData inBackground 
+      (.. curator setData inBackground
                   (forPath
                     (zk-path task-id)
                     (.getBytes (generate-string refined-spec))))
@@ -157,7 +172,7 @@
     (case operation
       ; I guess synchronized operation is OK now,
       ; since it only write some data into zookeeper.
-      :new    (new-task    obj curator)   
+      :new    (new-task    obj curator)
       :stop   (stop-task   obj curator)
       :update (update-task obj curator)
       :exit   (throw (Exception. "Exit Command"))
@@ -185,7 +200,7 @@
   (let [conn     (langohr.core/connect (config :rabbit))
         ch       (langohr.channel/open conn)
         qname    "storm.console"
-        curator  (CuratorFrameworkFactory/newClient 
+        curator  (CuratorFrameworkFactory/newClient
                    (-> config :storm :zk-host)
                    (ExponentialBackoffRetry. 1000 3))]
     (logs/start)
@@ -198,7 +213,7 @@
           (Thread/sleep write-interval)))
       ;(catch Exception e
       ;  (logs/exception e))
-      (finally 
+      (finally
         (do
           (.close curator)
           (langohr.core/close ch)
