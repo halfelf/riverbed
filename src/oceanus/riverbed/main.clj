@@ -1,5 +1,4 @@
 (ns oceanus.riverbed.main
-  (:require [cheshire.core :refer :all])
   (:require [clojure.java.jdbc :as jdbc])
   (:require [clojure.string :as string])
   (:require [clojure.edn :as edn])
@@ -8,6 +7,7 @@
   (:require [monger.core :as mg])
   (:require [monger.collection :as mc])
   (:require [langohr core basic consumers])
+  (:require [taoensso.nippy :as nippy])
   (:require [oceanus.riverbed
              [logs :as logs]
              [created-hook :as created-hook]])
@@ -98,13 +98,22 @@
 (defn make-regex
   "generating regex"
   [words-list filter-type]
-  (case filter-type
-    :include-any (string/join "|" (map #(. Pattern quote %) words-list))
-    :exclude-any (string/join "|" (map #(. Pattern quote %) words-list))
-    :include-all (string/join (map #(str "(?=.*" (. Pattern quote %) ")") words-list))
-      ; "\\Qa\\E|\\Qb\\E|\\Qc\\E"  or
-      ; "(?=.*\\Qa\\E)(?=.*\\Qb\\E)(?=.*\\Qc\\E)"
-    ))
+  (if (empty? words-list)
+    nil
+    (case filter-type
+      :include-any (Pattern/compile
+                     (string/join "|" (map #(. Pattern quote %) words-list))
+                     Pattern/CASE_INSENSITIVE) ; as PM asked
+      :exclude-any (Pattern/compile
+                     (string/join "|" (map #(. Pattern quote %) words-list))
+                     Pattern/CASE_INSENSITIVE)
+      :include-all (Pattern/compile
+                     (string/join
+                       (map #(str "(?=.*" (. Pattern quote %) ")") words-list))
+                     Pattern/CASE_INSENSITIVE)
+        ; "\\Qa\\E|\\Qb\\E|\\Qc\\E"  or
+        ; "(?=.*\\Qa\\E)(?=.*\\Qb\\E)(?=.*\\Qc\\E)"
+      )))
 
 (defn refine-spec
   "Split words in :and_keywords, or_keywords, :not_keywords
@@ -112,17 +121,16 @@
   [task-spec]
   (let [split-words   (reduce #(update-in %1 [%2] check-empty-or-split)
                             task-spec
-                            [:or_keywords :and_keywords :not_keywords])
-        refined-spec  (-> split-words
-                        (update-in [:conditions] #(or % "and"))  ; default to "and"
-                        (rename-keys {:or_keywords  :include-any
-                                      :and_keywords :include-all
-                                      :not_keywords :exclude-any
-                                      :conditions   :condition})
-                        (update-in [:include-any] #(make-regex % :include-any))
-                        (update-in [:include-all] #(make-regex % :include-all))
-                        (update-in [:exclude-any] #(make-regex % :exclude-any)))]
-    refined-spec))
+                            [:or_keywords :and_keywords :not_keywords])]
+    (-> split-words
+      (update-in [:conditions] #(or % "and"))  ; default to "and"
+      (rename-keys {:or_keywords  :include-any
+                    :and_keywords :include-all
+                    :not_keywords :exclude-any
+                    :conditions   :condition})
+      (update-in [:include-any] make-regex :include-any)
+      (update-in [:include-all] make-regex :include-all)
+      (update-in [:exclude-any] make-regex :exclude-any))))
 
 (defn zk-path
   "Accept a task id, return `/tasks/taskid`"
@@ -131,7 +139,7 @@
   (format "%s/%s" root-path subpath))
 
 (defn new-task
-  "create zookeeper path, set value to spec (json-like)"
+  "create zookeeper path, set value to spec (serialized byte array)"
   [task-id curator]
   (let [task-spec    (get-task-spec task-id)
         refined-spec (refine-spec task-spec)]
@@ -141,11 +149,12 @@
       (.. curator create inBackground
                   (forPath
                     (zk-path task-id)
-                    (.getBytes (generate-string refined-spec))))
+                    (nippy/freeze refined-spec))) ;serialize to byte array
       (catch KeeperException$NodeExistsException e (logs/exception e)))
     (logs/execute-req "NewTask" task-id)))
 
 (defn update-task
+  "similar to new-task, but update, not write new one"
   [task-id curator]
   (let [task-spec    (get-task-spec task-id)
         refined-spec (refine-spec task-spec)]
@@ -153,11 +162,12 @@
       (.. curator setData inBackground
                   (forPath
                     (zk-path task-id)
-                    (.getBytes (generate-string refined-spec))))
+                    (nippy/freeze refined-spec)))
       (catch KeeperException$NoNodeException e (logs/exception e)))
     (logs/execute-req "Update" task-id)))
 
 (defn stop-task
+  "delete corresponding zookeeper path"
   [task-id curator]
   (try
     (.. curator delete inBackground
