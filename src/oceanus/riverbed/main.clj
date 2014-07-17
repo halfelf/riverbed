@@ -178,18 +178,17 @@
 
 (defn- process-requests
   [curator]
-  (doseq [[obj operation] @console-msg]
-    (case operation
+  (dosync
+    (doseq [[obj operation] @console-msg]
+      (case operation
       ; I guess synchronized operation is OK now,
       ; since it only write some data into zookeeper.
-      :new    (new-task    obj curator)
-      :stop   (stop-task   obj curator)
-      :update (update-task obj curator)
-      :exit   (throw (Exception. "Exit Command"))
-      (logs/wrong-req obj operation)))
-  (dosync
-    (ref-set console-msg {}))
-  )
+        :new    (new-task    obj curator)
+        :stop   (stop-task   obj curator)
+        :update (update-task obj curator)
+        :exit   (throw (Exception. "Exit Command"))
+        (logs/wrong-req obj operation)))
+      (ref-set console-msg {})))
 
 (defn- update-with-tid
   [request-map task-id operation]
